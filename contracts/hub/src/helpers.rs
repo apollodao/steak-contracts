@@ -3,7 +3,6 @@ use std::str::FromStr;
 use cosmwasm_std::{
     Addr, Coin, QuerierWrapper, Reply, StdError, StdResult, SubMsgResponse, Uint128,
 };
-use cw20::{Cw20QueryMsg, TokenInfoResponse};
 
 use crate::types::Delegation;
 
@@ -12,16 +11,7 @@ pub(crate) fn unwrap_reply(reply: Reply) -> StdResult<SubMsgResponse> {
     reply.result.into_result().map_err(StdError::generic_err)
 }
 
-/// Query the total supply of a CW20 token
-pub(crate) fn query_cw20_total_supply(
-    querier: &QuerierWrapper,
-    token_addr: &Addr,
-) -> StdResult<Uint128> {
-    let token_info: TokenInfoResponse = querier.query_wasm_smart(token_addr, &Cw20QueryMsg::TokenInfo {})?;
-    Ok(token_info.total_supply)
-}
-
-/// Query the amounts of Luna a staker is delegating to a specific validator
+/// Query the amounts of OSMO a staker is delegating to a specific validator
 pub(crate) fn query_delegation(
     querier: &QuerierWrapper,
     validator: &str,
@@ -29,11 +19,14 @@ pub(crate) fn query_delegation(
 ) -> StdResult<Delegation> {
     Ok(Delegation {
         validator: validator.to_string(),
-        amount: querier.query_delegation(delegator_addr, validator)?.map(|fd| fd.amount.amount.u128()).unwrap_or(0),
+        amount: querier
+            .query_delegation(delegator_addr, validator)?
+            .map(|fd| fd.amount.amount.u128())
+            .unwrap_or(0),
     })
 }
 
-/// Query the amounts of Luna a staker is delegating to each of the validators specified
+/// Query the amounts of OSMO a staker is delegating to each of the validators specified
 pub(crate) fn query_delegations(
     querier: &QuerierWrapper,
     validators: &[String],
@@ -64,23 +57,28 @@ pub(crate) fn parse_coin(s: &str) -> StdResult<Coin> {
         }
     }
 
-    Err(StdError::generic_err(format!("failed to parse coin: {}", s)))
+    Err(StdError::generic_err(format!(
+        "failed to parse coin: {}",
+        s
+    )))
 }
 
 /// Find the amount of a denom sent along a message, assert it is non-zero, and no other denom were
 /// sent together
 pub(crate) fn parse_received_fund(funds: &[Coin], denom: &str) -> StdResult<Uint128> {
     if funds.len() != 1 {
-        return Err(StdError::generic_err(
-            format!("must deposit exactly one coin; received {}", funds.len()),
-        ));
+        return Err(StdError::generic_err(format!(
+            "must deposit exactly one coin; received {}",
+            funds.len()
+        )));
     }
 
     let fund = &funds[0];
     if fund.denom != denom {
-        return Err(StdError::generic_err(
-            format!("expected {} deposit, received {}", denom, fund.denom),
-        ));
+        return Err(StdError::generic_err(format!(
+            "expected {} deposit, received {}",
+            denom, fund.denom
+        )));
     }
 
     if fund.amount.is_zero() {

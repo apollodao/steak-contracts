@@ -1,12 +1,10 @@
 use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Decimal, Empty, StdResult, Uint128, WasmMsg};
-use cw20::Cw20ReceiveMsg;
+use osmo_bindings::OsmosisMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    /// Code ID of the CW20 token contract
-    pub cw20_code_id: u64,
     /// Account who can call certain privileged functions
     pub owner: String,
     /// Name of the liquid staking token
@@ -21,66 +19,51 @@ pub struct InstantiateMsg {
     pub unbond_period: u64,
     /// Initial set of validators who will receive the delegations
     pub validators: Vec<String>,
+    /// Contract where reward funds are sent
+    pub distribution_contract: String,
+    /// Fee that is awarded to distribution contract when harvesting rewards
+    pub performance_fee: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    /// Implements the Cw20 receiver interface
-    Receive(Cw20ReceiveMsg),
-    /// Bond specified amount of Luna
-    Bond {
-        receiver: Option<String>,
-    },
-    /// Withdraw Luna that have finished unbonding in previous batches
-    WithdrawUnbonded {
-        receiver: Option<String>,
-    },
+    /// Bond specified amount of osmo
+    Bond { receiver: Option<String> },
+    /// Withdraw osmo that have finished unbonding in previous batches
+    WithdrawUnbonded { receiver: Option<String> },
     /// Add a validator to the whitelist; callable by the owner
-    AddValidator {
-        validator: String,
-    },
+    AddValidator { validator: String },
     /// Remove a validator from the whitelist; callable by the owner
-    RemoveValidator {
-        validator: String,
-    },
+    RemoveValidator { validator: String },
     /// Transfer ownership to another account; will not take effect unless the new owner accepts
-    TransferOwnership {
-        new_owner: String,
-    },
+    TransferOwnership { new_owner: String },
     /// Accept an ownership transfer
     AcceptOwnership {},
-    /// Claim staking rewards, swap all for Luna, and restake
+    /// Claim staking rewards, swap all for osmo, and restake
     Harvest {},
-    /// Use redelegations to balance the amounts of Luna delegated to validators
+    /// Use redelegations to balance the amounts of osmo delegated to validators
     Rebalance {},
-    /// Update Luna amounts in unbonding batches to reflect any slashing or rounding errors
+    /// Update osmo amounts in unbonding batches to reflect any slashing or rounding errors
     Reconcile {},
     /// Submit the current pending batch of unbonding requests to be unbonded
     SubmitBatch {},
+    /// Submit an unbonding request to the current unbonding queue; automatically invokes `unbond`
+    /// if `epoch_time` has elapsed since when the last unbonding queue was executed.
+    QueueUnbond { receiver: Option<String> },
     /// Callbacks; can only be invoked by the contract itself
     Callback(CallbackMsg),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum ReceiveMsg {
-    /// Submit an unbonding request to the current unbonding queue; automatically invokes `unbond`
-    /// if `epoch_time` has elapsed since when the last unbonding queue was executed.
-    QueueUnbond {
-        receiver: Option<String>,
-    },
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
 pub enum CallbackMsg {
-    /// Following the swaps, stake the Luna acquired to the whitelisted validators
+    /// Following the swaps, stake the osmo acquired to the whitelisted validators
     Reinvest {},
 }
 
 impl CallbackMsg {
-    pub fn into_cosmos_msg(&self, contract_addr: &Addr) -> StdResult<CosmosMsg> {
+    pub fn into_cosmos_msg(&self, contract_addr: &Addr) -> StdResult<CosmosMsg<OsmosisMsg>> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: contract_addr.to_string(),
             msg: to_binary(&ExecuteMsg::Callback(self.clone()))?,
@@ -127,23 +110,27 @@ pub struct ConfigResponse {
     pub owner: String,
     /// Pending ownership transfer, awaiting acceptance by the new owner
     pub new_owner: Option<String>,
-    /// Address of the Steak token
-    pub steak_token: String,
+    /// Address of the Steak denom
+    pub steak_denom: String,
     /// How often the unbonding queue is to be executed, in seconds
     pub epoch_period: u64,
     /// The staking module's unbonding time, in seconds
     pub unbond_period: u64,
     /// Initial set of validators who will receive the delegations
     pub validators: Vec<String>,
+    /// Contract where reward funds are sent
+    pub distribution_contract: Addr,
+    /// Fee that is awarded to distribution contract when harvesting rewards
+    pub performance_fee: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct StateResponse {
     /// Total supply to the Steak token
     pub total_usteak: Uint128,
-    /// Total amount of uluna staked
-    pub total_uluna: Uint128,
-    /// The exchange rate between usteak and uluna, in terms of uluna per usteak
+    /// Total amount of uosmo staked
+    pub total_uosmo: Uint128,
+    /// The exchange rate between usteak and uosmo, in terms of uosmo per usteak
     pub exchange_rate: Decimal,
     /// Staking rewards currently held by the contract that are ready to be reinvested
     pub unlocked_coins: Vec<Coin>,
@@ -167,8 +154,8 @@ pub struct Batch {
     pub reconciled: bool,
     /// Total amount of shares remaining this batch. Each `usteak` burned = 1 share
     pub total_shares: Uint128,
-    /// Amount of `uluna` in this batch that have not been claimed
-    pub uluna_unclaimed: Uint128,
+    /// Amount of `uosmo` in this batch that have not been claimed
+    pub uosmo_unclaimed: Uint128,
     /// Estimated time when this batch will finish unbonding
     pub est_unbond_end_time: u64,
 }
