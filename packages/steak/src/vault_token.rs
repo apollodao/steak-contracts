@@ -1,4 +1,3 @@
-use crate::hub::{Batch, BooleanKey, UnbondRequest};
 use std::vec;
 
 use apollo_protocol::utils::parse_contract_addr_from_instantiate_event;
@@ -8,7 +7,7 @@ use cosmwasm_std::{
     Uint128, WasmMsg, WasmQuery,
 };
 use cw20_base::msg::{ExecuteMsg as Cw20ExecuteMsg, QueryMsg as Cw20QueryMsg};
-use cw_storage_plus::{Index, IndexList, Item, MultiIndex};
+use cw_storage_plus::Item;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -167,30 +166,6 @@ struct OsmosisMintMsg {
 struct OsmosisBurnMsg {
     amount: Coin,
     sender: String,
-}
-
-pub(crate) struct PreviousBatchesIndexes<'a> {
-    // pk goes to second tuple element
-    pub reconciled: MultiIndex<'a, BooleanKey, Batch, Vec<u8>>,
-}
-
-impl<'a> IndexList<Batch> for PreviousBatchesIndexes<'a> {
-    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Batch>> + '_> {
-        let v: Vec<&dyn Index<Batch>> = vec![&self.reconciled];
-        Box::new(v.into_iter())
-    }
-}
-
-pub(crate) struct UnbondRequestsIndexes<'a> {
-    // pk goes to second tuple element
-    pub user: MultiIndex<'a, String, UnbondRequest, Vec<u8>>,
-}
-
-impl<'a> IndexList<UnbondRequest> for UnbondRequestsIndexes<'a> {
-    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<UnbondRequest>> + '_> {
-        let v: Vec<&dyn Index<UnbondRequest>> = vec![&self.user];
-        Box::new(v.into_iter())
-    }
 }
 
 /// Find the amount of a denom sent along a message, assert it is non-zero, and no other denom were
