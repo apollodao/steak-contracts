@@ -37,8 +37,6 @@ pub(crate) fn compute_unbond_amount(
     usteak_to_burn: Uint128,
     current_delegations: &[Delegation],
 ) -> Uint128 {
-    println!("usteak_supply: {}", usteak_supply);
-    println!("usteak_to_burn: {}", usteak_to_burn);
     let uosmo_bonded: u128 = current_delegations.iter().map(|d| d.amount).sum();
     Uint128::new(uosmo_bonded).multiply_ratio(usteak_to_burn, usteak_supply)
 }

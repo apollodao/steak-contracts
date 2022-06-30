@@ -27,7 +27,7 @@ pub struct InstantiateMsg {
     pub token_init_info: TokenInitInfo,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     /// Bond specified amount of osmo
@@ -59,7 +59,7 @@ pub enum ExecuteMsg {
     /// Callbacks; can only be invoked by the contract itself
     Callback(CallbackMsg),
 }
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReceiveMsg {
     /// Submit an unbonding request to the current unbonding queue; automatically invokes `unbond`
@@ -67,7 +67,7 @@ pub enum ReceiveMsg {
     QueueUnbond { receiver: Option<String> },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CallbackMsg {
     /// Following the swaps, stake the osmo acquired to the whitelisted validators
@@ -84,7 +84,7 @@ impl CallbackMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// The contract's configurations. Response: `ConfigResponse`
@@ -116,13 +116,13 @@ pub enum QueryMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ConfigResponse {
     /// Account who can call certain privileged functions
     pub owner: String,
     /// Pending ownership transfer, awaiting acceptance by the new owner
     pub new_owner: Option<String>,
-    /// Address or denom of the Steak denom
+    /// Address or denom of the Steak token
     pub steak_token: String,
     /// How often the unbonding queue is to be executed, in seconds
     pub epoch_period: u64,
@@ -148,7 +148,7 @@ pub struct StateResponse {
     pub unlocked_coins: Vec<Coin>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct PendingBatch {
     /// ID of this batch
     pub id: u64,
@@ -158,7 +158,7 @@ pub struct PendingBatch {
     pub est_unbond_start_time: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct Batch {
     /// ID of this batch
     pub id: u64,
@@ -172,7 +172,7 @@ pub struct Batch {
     pub est_unbond_end_time: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct UnbondRequest {
     /// ID of the batch
     pub id: u64,
@@ -182,7 +182,7 @@ pub struct UnbondRequest {
     pub shares: Uint128,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct UnbondRequestsByBatchResponseItem {
     /// The user's address
     pub user: String,
@@ -199,7 +199,7 @@ impl From<UnbondRequest> for UnbondRequestsByBatchResponseItem {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct UnbondRequestsByUserResponseItem {
     /// ID of the batch
     pub id: u64,
@@ -220,7 +220,7 @@ pub type MigrateMsg = Empty;
 
 use std::marker::PhantomData;
 
-use cw_storage_plus::{Key, Prefixer, PrimaryKey};
+use cw_storage_plus::{Key, PrimaryKey};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BooleanKey {
@@ -251,11 +251,5 @@ impl<'a> PrimaryKey<'a> for BooleanKey {
 
     fn key(&self) -> Vec<Key> {
         self.wrapped.key()
-    }
-}
-
-impl<'a> Prefixer<'a> for BooleanKey {
-    fn prefix(&self) -> Vec<Key> {
-        self.wrapped.prefix()
     }
 }

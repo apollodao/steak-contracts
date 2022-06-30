@@ -100,7 +100,7 @@ pub struct TokenInstantiator {
 
 const TOKEN_ITEM_KEY: Item<String> = Item::new("token_item_key");
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct OsmosisCreateDenomMsg {
     sender: String,
     subdenom: String,
@@ -140,7 +140,7 @@ impl TokenInstantiator {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Token {
     Osmosis { denom: String },

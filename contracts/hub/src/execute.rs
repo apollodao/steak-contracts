@@ -13,7 +13,7 @@ use crate::math::{
     compute_mint_amount, compute_redelegations_for_rebalancing, compute_redelegations_for_removal,
     compute_unbond_amount, compute_undelegations, reconcile_batches,
 };
-use crate::state::{State, STEAK_TOKEN_KEY};
+use crate::state::{State, REGISTER_RECEIVED_COINS, STEAK_TOKEN_KEY};
 use crate::types::{Coins, Delegation};
 use steak::error::ContractError;
 
@@ -177,12 +177,12 @@ pub fn reinvest(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     let performance_fee = state.performance_fee.load(deps.storage)?;
     let uosmo_to_bond = total_uosmo_harvest * (Decimal::one() - performance_fee);
-    let uosmo_to_send_to_delegation_contract = total_uosmo_harvest - uosmo_to_bond;
+    let uosmo_to_send_to_distribution_contract = total_uosmo_harvest - uosmo_to_bond;
     let distribution_contract = state.distribution_contract.load(deps.storage)?;
 
-    let harvest = CosmosMsg::Bank(BankMsg::Send {
+    let send = CosmosMsg::Bank(BankMsg::Send {
         to_address: distribution_contract.to_string(),
-        amount: coins(uosmo_to_send_to_delegation_contract.u128(), "uosmo"),
+        amount: coins(uosmo_to_send_to_distribution_contract.u128(), "uosmo"),
     });
 
     let delegations = query_delegations(&deps.querier, &validators, &env.contract.address)?;
@@ -207,7 +207,7 @@ pub fn reinvest(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     Ok(Response::new()
         .add_message(new_delegation.to_cosmos_msg())
-        .add_message(harvest)
+        .add_message(send)
         .add_event(event)
         .add_attribute("action", "steakhub/reinvest"))
 }
@@ -384,7 +384,7 @@ pub fn submit_batch(deps: DepsMut, env: Env) -> Result<Response, ContractError> 
 
     let undelegate_submsgs = new_undelegations
         .iter()
-        .map(|d| SubMsg::reply_on_success(d.to_cosmos_msg(), 1))
+        .map(|d| SubMsg::reply_on_success(d.to_cosmos_msg(), REGISTER_RECEIVED_COINS))
         .collect::<Vec<_>>();
 
     let steak_token = state.steak_token.load(deps.storage)?;

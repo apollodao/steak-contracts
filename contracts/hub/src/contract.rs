@@ -1,12 +1,12 @@
+use crate::helpers::{parse_received_fund, unwrap_reply};
+use crate::state::REGISTER_RECEIVED_COINS;
+use crate::{execute, queries};
 use cosmwasm_std::{
     entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
 };
+use steak::error::ContractError;
 use steak::hub::{CallbackMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use steak::vault_token::reply_save_token;
-
-use crate::helpers::{parse_received_fund, unwrap_reply};
-use crate::{execute, queries};
-use steak::error::ContractError;
 
 #[entry_point]
 pub fn instantiate(
@@ -91,7 +91,9 @@ fn callback(
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
     match reply.id {
-        1 => execute::register_received_coins(deps, env, unwrap_reply(reply)?.events),
+        REGISTER_RECEIVED_COINS => {
+            execute::register_received_coins(deps, env, unwrap_reply(reply)?.events)
+        }
         _id => reply_save_token(deps, reply).map_err(|e| e.into()),
     }
 }
