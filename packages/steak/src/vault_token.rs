@@ -1,13 +1,18 @@
 use std::vec;
 
+use apollo_proto_rust::{
+    cosmos::base::v1beta1::Coin as ProtoCoin,
+    osmosis::tokenfactory::v1beta1::{MsgBurn, MsgCreateDenom, MsgMint},
+};
 use apollo_protocol::utils::parse_contract_addr_from_instantiate_event;
 use cosmwasm_std::{
-    to_binary, Addr, BalanceResponse, BankMsg, BankQuery, Coin, CosmosMsg, DepsMut, Env,
+    to_binary, Addr, BalanceResponse, BankMsg, BankQuery, Binary, Coin, CosmosMsg, DepsMut, Env,
     MessageInfo, QuerierWrapper, Reply, Response, StdError, StdResult, SubMsg, SubMsgResponse,
     Uint128, WasmMsg, WasmQuery,
 };
 use cw20_base::msg::{ExecuteMsg as Cw20ExecuteMsg, QueryMsg as Cw20QueryMsg};
 use cw_storage_plus::Item;
+use prost::Message;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -111,16 +116,20 @@ impl TokenInstantiator {
         TOKEN_ITEM_KEY.save(deps.storage, &self.item_key)?;
 
         match self.init_info.clone() {
-            TokenInitInfo::Osmosis { subdenom } => Ok(SubMsg::reply_always(
-                CosmosMsg::Stargate {
-                    type_url: "/osmosis.tokenfactory.v1beta1.MsgCreateDenom".to_string(),
-                    value: to_binary(&OsmosisCreateDenomMsg {
-                        sender: env.contract.address.to_string(),
-                        subdenom,
-                    })?,
-                },
-                REPLY_SAVE_OSMOSIS_DENOM,
-            )),
+            TokenInitInfo::Osmosis { subdenom } => {
+                let msg = MsgCreateDenom {
+                    subdenom,
+                    sender: env.contract.address.to_string(),
+                };
+                let msg_bin = Binary::from(msg.encode_to_vec());
+                Ok(SubMsg::reply_always(
+                    CosmosMsg::Stargate {
+                        type_url: "/osmosis.tokenfactory.v1beta1.MsgCreateDenom".to_string(),
+                        value: msg_bin,
+                    },
+                    REPLY_SAVE_OSMOSIS_DENOM,
+                ))
+            }
             TokenInitInfo::Cw20 {
                 cw20_init_msg,
                 label,
@@ -156,18 +165,6 @@ impl ToString for Token {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-struct OsmosisMintMsg {
-    amount: Coin,
-    sender: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-struct OsmosisBurnMsg {
-    amount: Coin,
-    sender: String,
-}
-
 /// Find the amount of a denom sent along a message, assert it is non-zero, and no other denom were
 /// sent together
 /// TODO: Took from steakcontracts. Move out to protocol utils and use here and in main steak contracts
@@ -197,16 +194,22 @@ pub(crate) fn parse_received_fund(funds: &[Coin], denom: &str) -> StdResult<Uint
 impl Token {
     pub fn mint(&self, env: &Env, amount: Uint128, recipient: String) -> StdResult<CosmosMsg> {
         match self {
-            Token::Osmosis { denom } => Ok(CosmosMsg::Stargate {
-                type_url: "/osmosis.tokenfactory.v1beta1.MsgMint".to_string(),
-                value: to_binary(&OsmosisMintMsg {
-                    amount: Coin {
+            Token::Osmosis { denom } => {
+                let msg = MsgMint {
+                    amount: Some(ProtoCoin {
                         denom: denom.to_string(),
-                        amount,
-                    },
+                        amount: amount.to_string(),
+                    }),
                     sender: env.contract.address.to_string(),
-                })?,
-            }),
+                };
+
+                let msg_bin = Binary::from(msg.encode_to_vec());
+
+                Ok(CosmosMsg::Stargate {
+                    type_url: "/osmosis.tokenfactory.v1beta1.MsgMint".to_string(),
+                    value: msg_bin,
+                })
+            }
             Token::Cw20 { address } => Ok(WasmMsg::Execute {
                 contract_addr: address.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Mint { amount, recipient })?,
@@ -218,16 +221,21 @@ impl Token {
 
     pub fn burn(&self, env: &Env, amount: Uint128) -> StdResult<CosmosMsg> {
         match self {
-            Token::Osmosis { denom } => Ok(CosmosMsg::Stargate {
-                type_url: "/osmosis.tokenfactory.v1beta1.Msg/Burn".to_string(),
-                value: to_binary(&OsmosisBurnMsg {
-                    amount: Coin {
+            Token::Osmosis { denom } => {
+                let msg = MsgBurn {
+                    amount: Some(ProtoCoin {
                         denom: denom.to_string(),
-                        amount,
-                    },
+                        amount: amount.to_string(),
+                    }),
                     sender: env.contract.address.to_string(),
-                })?,
-            }),
+                };
+
+                let msg_bin = Binary::from(msg.encode_to_vec());
+                Ok(CosmosMsg::Stargate {
+                    type_url: "/osmosis.tokenfactory.v1beta1.MsgBurn".to_string(),
+                    value: msg_bin,
+                })
+            }
             Token::Cw20 { address } => Ok(WasmMsg::Execute {
                 contract_addr: address.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Burn { amount })?,
