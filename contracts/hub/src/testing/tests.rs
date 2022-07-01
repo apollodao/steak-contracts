@@ -1,25 +1,32 @@
-use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
+use apollo_proto_rust::{
+    cosmos::base::v1beta1::Coin as ProtoCoin,
+    osmosis::tokenfactory::v1beta1::{MsgBurn, MsgCreateDenom, MsgMint},
+};
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg, Event, Order,
     OwnedDeps, Reply, ReplyOn, StdError, SubMsg, SubMsgResponse, Uint128, WasmMsg,
 };
+use prost::Message;
+
+use cosmwasm_std::{
+    testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR},
+    Binary,
+};
 use std::str::FromStr;
 
-use osmo_bindings::OsmosisMsg;
-use steak::hub::{
-    Batch, CallbackMsg, ConfigResponse, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg,
-    StateResponse, UnbondRequest, UnbondRequestsByBatchResponseItem,
-    UnbondRequestsByUserResponseItem,
-};
-
 use crate::contract::{execute, instantiate, reply};
-use crate::error::ContractError;
 use crate::helpers::{parse_coin, parse_received_fund};
 use crate::math::{
     compute_redelegations_for_rebalancing, compute_redelegations_for_removal, compute_undelegations,
 };
 use crate::state::State;
 use crate::types::{Coins, Delegation, Redelegation, Undelegation};
+use steak::hub::{
+    Batch, CallbackMsg, ConfigResponse, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg,
+    StateResponse, UnbondRequest, UnbondRequestsByBatchResponseItem,
+    UnbondRequestsByUserResponseItem,
+};
+use steak::{error::ContractError, vault_token::TokenInitInfo};
 
 use super::custom_querier::CustomQuerier;
 use super::helpers::{mock_dependencies, mock_env_at_timestamp, query_helper};
@@ -50,6 +57,9 @@ fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
             ],
             performance_fee: 5,
             distribution_contract: "distribution_contract".to_string(),
+            token_init_info: TokenInitInfo::Osmosis {
+                subdenom: "apOSMO".to_string(),
+            },
         },
     )
     .unwrap();
@@ -70,7 +80,7 @@ fn proper_instantiation() {
         ConfigResponse {
             owner: "apollo".to_string(),
             new_owner: None,
-            steak_denom: DENOM.to_string(),
+            steak_token: DENOM.to_string(),
             epoch_period: 259200,
             unbond_period: 1814400,
             validators: vec![
@@ -125,18 +135,28 @@ fn bonding() {
         res.messages[0],
         SubMsg::reply_on_success(Delegation::new("alice", 1000000).to_cosmos_msg(), 1)
     );
+
+    let msg = MsgMint {
+        amount: Some(ProtoCoin {
+            denom: DENOM.to_string(),
+            amount: 1000000.to_string(),
+        }),
+        sender: MOCK_CONTRACT_ADDR.to_string(),
+    };
+
+    let msg_bin = Binary::from(msg.encode_to_vec());
+
     assert_eq!(
-        res.messages[1],
-        SubMsg {
+        res.messages,
+        vec![SubMsg {
             id: 0,
-            msg: CosmosMsg::Custom(OsmosisMsg::MintTokens {
-                denom: DENOM.to_string(),
-                amount: Uint128::new(1000000),
-                mint_to_address: "user_1".to_string()
-            }),
+            msg: CosmosMsg::Stargate {
+                type_url: "/osmosis.tokenfactory.v1beta1.MsgMint".to_string(),
+                value: msg_bin
+            },
             gas_limit: None,
             reply_on: ReplyOn::Never,
-        }
+        }]
     );
 
     // Bond when there are existing delegations, and OSMO:Steak exchange rate is >1
@@ -168,15 +188,25 @@ fn bonding() {
         res.messages[0],
         SubMsg::reply_on_success(Delegation::new("charlie", 12345).to_cosmos_msg(), 1)
     );
+
+    let msg = MsgMint {
+        amount: Some(ProtoCoin {
+            denom: DENOM.to_string(),
+            amount: 12043.to_string(),
+        }),
+        sender: MOCK_CONTRACT_ADDR.to_string(),
+    };
+
+    let msg_bin = Binary::from(msg.encode_to_vec());
+
     assert_eq!(
         res.messages[1],
         SubMsg {
             id: 0,
-            msg: CosmosMsg::Custom(OsmosisMsg::MintTokens {
-                denom: DENOM.to_string(),
-                amount: Uint128::new(12043),
-                mint_to_address: "user_3".to_string()
-            }),
+            msg: CosmosMsg::Stargate {
+                type_url: "/osmosis.tokenfactory.v1beta1.MsgMint".to_string(),
+                value: msg_bin
+            },
             gas_limit: None,
             reply_on: ReplyOn::Never
         }

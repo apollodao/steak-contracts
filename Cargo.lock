@@ -693,9 +693,11 @@ dependencies = [
 name = "steak-hub"
 version = "2.0.0"
 dependencies = [
+ "apollo-proto-rust",
  "cosmwasm-std",
  "cw-storage-plus",
  "cw20",
+ "prost",
  "serde",
  "steak",
  "thiserror",

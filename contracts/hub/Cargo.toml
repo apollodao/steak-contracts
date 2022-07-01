@@ -20,4 +20,6 @@ steak = {path = "../../packages/steak"}
 thiserror = {version = "1.0.31"}
 
 [dev-dependencies]
+apollo-proto-rust = {rev = "66cb87333618be78727052220918bd07742d4487", git = "https://github.com/apollodao/apollo-proto-rust.git"}
+prost = "0.10"
 serde = {version = "1.0.103", default-features = false, features = ["derive"]}
