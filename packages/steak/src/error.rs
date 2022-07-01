@@ -52,12 +52,16 @@ pub enum ContractError {
     #[error("No coins sent")]
     NoCoinsSent {},
 
+    /// Incorrect Queue Unbond Message Error
+    #[error("Use the native token implemenation of `queue_unbond`")]
+    IncorrectQueueUnbondMessage {},
+
     /// Invalid Callback Sender Error
     #[error("callbacks can only be invoked by the contract itself")]
     InvalidCallbackSender {},
 
     /// Invalid Reply ID Error
-    #[error("invalid reply id: {}; must be 1-2 {id}")]
+    #[error("invalid reply id: {}; must be 1, 2 or 3 {id}")]
     InvalidReplyId { id: u64 },
     // Add any other custom errors you like here.
     // Look at https://docs.rs/thiserror/1.0.31/thiserror/ for details.

@@ -5,8 +5,6 @@ use steak::{
     vault_token::Token,
 };
 
-pub const REGISTER_RECEIVED_COINS: u64 = 1;
-
 use steak::error::ContractError;
 
 use crate::types::BooleanKey;

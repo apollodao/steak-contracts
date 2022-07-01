@@ -1,4 +1,5 @@
 use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Decimal, Empty, StdResult, Uint128, WasmMsg};
+use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -27,9 +28,11 @@ pub struct InstantiateMsg {
     pub token_init_info: TokenInitInfo,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    /// Implements the Cw20 receiver interface
+    Receive(Cw20ReceiveMsg),
     /// Bond specified amount of osmo
     Bond { receiver: Option<String> },
     /// Withdraw osmo that have finished unbonding in previous batches
@@ -52,10 +55,7 @@ pub enum ExecuteMsg {
     SubmitBatch {},
     /// Submit an unbonding request to the current unbonding queue; automatically invokes `unbond`
     /// if `epoch_time` has elapsed since when the last unbonding queue was executed.
-    QueueUnbond {
-        amount: Uint128,
-        receiver: Option<String>,
-    },
+    QueueUnbond { receiver: Option<String> },
     /// Callbacks; can only be invoked by the contract itself
     Callback(CallbackMsg),
 }

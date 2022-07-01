@@ -1,12 +1,17 @@
 use crate::helpers::{parse_received_fund, unwrap_reply};
-use crate::state::REGISTER_RECEIVED_COINS;
+use crate::state::State;
 use crate::{execute, queries};
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdResult,
 };
+use cw20::Cw20ReceiveMsg;
 use steak::error::ContractError;
-use steak::hub::{CallbackMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use steak::hub::{CallbackMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, ReceiveMsg};
 use steak::vault_token::reply_save_token;
+use steak::vault_token::{
+    REPLY_REGISTER_RECEIVED_COINS, REPLY_SAVE_CW20_ADDRESS, REPLY_SAVE_OSMOSIS_DENOM,
+};
 
 #[entry_point]
 pub fn instantiate(
@@ -25,8 +30,10 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+    let steak_token = State::default().steak_token.load(deps.storage)?;
     let api = deps.api;
     match msg {
+        ExecuteMsg::Receive(cw20_msg) => receive(deps, env, info, cw20_msg),
         ExecuteMsg::Bond { receiver } => execute::bond(
             deps,
             env,
@@ -59,7 +66,7 @@ pub fn execute(
         ExecuteMsg::Rebalance {} => execute::rebalance(deps, env),
         ExecuteMsg::Reconcile {} => execute::reconcile(deps, env),
         ExecuteMsg::SubmitBatch {} => execute::submit_batch(deps, env),
-        ExecuteMsg::QueueUnbond { receiver, amount } => execute::queue_unbond(
+        ExecuteMsg::QueueUnbond { receiver } => execute::queue_unbond(
             deps,
             env,
             info.clone(),
@@ -67,9 +74,42 @@ pub fn execute(
                 .map(|s| api.addr_validate(&s))
                 .transpose()?
                 .unwrap_or_else(|| info.sender.clone()),
-            amount,
+            parse_received_fund(&info.funds, &steak_token.to_string())?,
         ),
         ExecuteMsg::Callback(callback_msg) => callback(deps, env, info, callback_msg),
+    }
+}
+
+fn receive(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    cw20_msg: Cw20ReceiveMsg,
+) -> Result<Response, ContractError> {
+    let api = deps.api;
+    match from_binary(&cw20_msg.msg)? {
+        ReceiveMsg::QueueUnbond { receiver } => {
+            let state = State::default();
+
+            let steak_token = state.steak_token.load(deps.storage)?;
+            match steak_token {
+                steak::vault_token::Token::Osmosis { denom: _ } => {
+                    return Err(ContractError::IncorrectQueueUnbondMessage {});
+                }
+                steak::vault_token::Token::Cw20 { address } => {
+                    if info.sender != address {
+                        return Err(ContractError::InvalidCoinSent {});
+                    }
+                    return execute::queue_unbond(
+                        deps,
+                        env,
+                        info,
+                        api.addr_validate(&receiver.unwrap_or(cw20_msg.sender))?,
+                        cw20_msg.amount,
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -91,10 +131,12 @@ fn callback(
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
     match reply.id {
-        REGISTER_RECEIVED_COINS => {
+        REPLY_REGISTER_RECEIVED_COINS => {
             execute::register_received_coins(deps, env, unwrap_reply(reply)?.events)
         }
-        _id => reply_save_token(deps, reply).map_err(|e| e.into()),
+        REPLY_SAVE_CW20_ADDRESS => reply_save_token(deps, reply).map_err(|e| e.into()),
+        REPLY_SAVE_OSMOSIS_DENOM => reply_save_token(deps, reply).map_err(|e| e.into()),
+        id => Err(ContractError::InvalidReplyId { id: id }),
     }
 }
 

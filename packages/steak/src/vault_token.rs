@@ -19,8 +19,9 @@ use serde::{Deserialize, Serialize};
 use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 
-const REPLY_SAVE_OSMOSIS_DENOM: u64 = 14508;
-const REPLY_SAVE_CW20_ADDRESS: u64 = 14509;
+pub const REPLY_REGISTER_RECEIVED_COINS: u64 = 1;
+pub const REPLY_SAVE_OSMOSIS_DENOM: u64 = 2;
+pub const REPLY_SAVE_CW20_ADDRESS: u64 = 3;
 
 /// Unwrap a `Reply` object to extract the response
 /// TODO: Copied from larrys steakhouse. Move to protocol
@@ -78,7 +79,7 @@ pub fn reply_save_token(deps: DepsMut, reply: Reply) -> StdResult<Response> {
         REPLY_SAVE_OSMOSIS_DENOM => save_osmosis_denom(deps, res, item),
         REPLY_SAVE_CW20_ADDRESS => save_cw20_address(deps, res, item),
         id => Err(StdError::generic_err(format!(
-            "invalid reply id: {}; must be 14508-14509",
+            "invalid reply id: {}; must be 2-3",
             id
         ))),
     }

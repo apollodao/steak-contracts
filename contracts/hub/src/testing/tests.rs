@@ -4,7 +4,7 @@ use apollo_proto_rust::{
 };
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg, Event, Order,
-    OwnedDeps, Reply, ReplyOn, StdError, SubMsg, SubMsgResponse, Uint128, WasmMsg,
+    OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse, Uint128, WasmMsg,
 };
 use prost::Message;
 
@@ -21,12 +21,15 @@ use crate::math::{
 };
 use crate::state::State;
 use crate::types::{Coins, Delegation, Redelegation, Undelegation};
-use steak::hub::{
-    Batch, CallbackMsg, ConfigResponse, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg,
-    StateResponse, UnbondRequest, UnbondRequestsByBatchResponseItem,
-    UnbondRequestsByUserResponseItem,
-};
 use steak::{error::ContractError, vault_token::TokenInitInfo};
+use steak::{
+    hub::{
+        Batch, CallbackMsg, ConfigResponse, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg,
+        StateResponse, UnbondRequest, UnbondRequestsByBatchResponseItem,
+        UnbondRequestsByUserResponseItem,
+    },
+    vault_token::Token,
+};
 
 use super::custom_querier::CustomQuerier;
 use super::helpers::{mock_dependencies, mock_env_at_timestamp, query_helper};
@@ -63,6 +66,16 @@ fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
         },
     )
     .unwrap();
+
+    State::default()
+        .steak_token
+        .save(
+            deps.as_mut().storage,
+            &Token::Osmosis {
+                denom: DENOM.to_string(),
+            },
+        )
+        .unwrap();
 
     deps
 }
@@ -148,15 +161,26 @@ fn bonding() {
 
     assert_eq!(
         res.messages,
-        vec![SubMsg {
-            id: 0,
-            msg: CosmosMsg::Stargate {
-                type_url: "/osmosis.tokenfactory.v1beta1.MsgMint".to_string(),
-                value: msg_bin
+        vec![
+            SubMsg {
+                id: 1,
+                msg: CosmosMsg::Staking(StakingMsg::Delegate {
+                    validator: "alice".to_string(),
+                    amount: coin(1000000u128, "uosmo")
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Success,
             },
-            gas_limit: None,
-            reply_on: ReplyOn::Never,
-        }]
+            SubMsg {
+                id: 0,
+                msg: CosmosMsg::Stargate {
+                    type_url: "/osmosis.tokenfactory.v1beta1.MsgMint".to_string(),
+                    value: msg_bin
+                },
+                gas_limit: None,
+                reply_on: ReplyOn::Never,
+            }
+        ]
     );
 
     // Bond when there are existing delegations, and OSMO:Steak exchange rate is >1
@@ -423,7 +447,12 @@ fn queuing_unbond() {
     )
     .unwrap_err();
 
-    assert_eq!(err, ContractError::NoCoinsSent {});
+    assert_eq!(
+        err,
+        ContractError::Std(StdError::generic_err(
+            "must deposit exactly one coin; received 0"
+        ))
+    );
 
     err = execute(
         deps.as_mut(),
@@ -433,7 +462,12 @@ fn queuing_unbond() {
     )
     .unwrap_err();
 
-    assert_eq!(err, ContractError::InvalidCoinSent {});
+    assert_eq!(
+        err,
+        ContractError::Std(StdError::generic_err(
+            "expected factory/cosmos2contract/apOSMO deposit, received random"
+        ))
+    );
 
     // User 1 creates an unbonding request before `est_unbond_start_time` is reached. The unbond
     // request is saved, but not the pending batch is not submitted for unbonding
@@ -608,15 +642,24 @@ fn submitting_batch() {
         res.messages[2],
         SubMsg::reply_on_success(Undelegation::new("charlie", 31732).to_cosmos_msg(), 1)
     );
+
     assert_eq!(
         res.messages[3],
         SubMsg {
             id: 0,
-            msg: CosmosMsg::Custom(OsmosisMsg::BurnTokens {
-                denom: DENOM.to_string(),
-                amount: Uint128::new(92876),
-                burn_from_address: "".to_string()
-            }),
+            msg: CosmosMsg::Stargate {
+                type_url: "/osmosis.tokenfactory.v1beta1.MsgBurn".to_string(),
+                value: Binary::from(
+                    MsgMint {
+                        amount: Some(ProtoCoin {
+                            denom: DENOM.to_string(),
+                            amount: 1000000.to_string(),
+                        }),
+                        sender: MOCK_CONTRACT_ADDR.to_string(),
+                    }
+                    .encode_to_vec()
+                )
+            },
             gas_limit: None,
             reply_on: ReplyOn::Never
         }
