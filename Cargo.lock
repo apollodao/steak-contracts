@@ -702,15 +702,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "steak-token"
-version = "2.0.0"
-dependencies = [
- "cosmwasm-std",
- "cw20",
- "cw20-base",
-]
-
-[[package]]
 name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
