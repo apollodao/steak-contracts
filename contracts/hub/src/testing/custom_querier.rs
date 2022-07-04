@@ -4,7 +4,7 @@ use cosmwasm_std::{
     SystemError, WasmQuery,
 };
 
-use crate::types::Delegation;
+use steak::types::Delegation;
 
 use super::helpers::err_unsupported_query;
 

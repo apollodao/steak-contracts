@@ -15,12 +15,12 @@ use cosmwasm_std::{
 use std::str::FromStr;
 
 use crate::contract::{execute, instantiate, reply};
-use crate::helpers::{parse_coin, parse_received_fund};
-use crate::math::{
+use steak::helpers::{parse_coin, parse_received_fund};
+use steak::math::{
     compute_redelegations_for_rebalancing, compute_redelegations_for_removal, compute_undelegations,
 };
-use crate::state::State;
-use crate::types::{Coins, Delegation, Redelegation, Undelegation};
+use steak::state::State;
+use steak::types::{Coins, Delegation, Redelegation, Undelegation};
 use steak::{error::ContractError, vault_token::TokenInitInfo};
 use steak::{
     hub::{

@@ -1,15 +1,15 @@
-use cosmwasm_std::{Addr, Coin, Decimal, Storage, Uint128};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
-use steak::{
+use crate::{
     hub::{Batch, PendingBatch, UnbondRequest},
     vault_token::Token,
 };
+use cosmwasm_std::{Addr, Coin, Decimal, Storage, Uint128};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 
-use steak::error::ContractError;
+use crate::error::ContractError;
 
 use crate::types::BooleanKey;
 
-pub(crate) struct State<'a> {
+pub struct State<'a> {
     /// Account who can call certain privileged functions
     pub owner: Item<'a, Addr>,
     /// Pending ownership transfer, awaiting acceptance by the new owner
@@ -85,7 +85,7 @@ impl<'a> State<'a> {
     }
 }
 
-pub(crate) struct PreviousBatchesIndexes<'a> {
+pub struct PreviousBatchesIndexes<'a> {
     // pk goes to second tuple element
     pub reconciled: MultiIndex<'a, BooleanKey, Batch, Vec<u8>>,
 }
@@ -97,7 +97,7 @@ impl<'a> IndexList<Batch> for PreviousBatchesIndexes<'a> {
     }
 }
 
-pub(crate) struct UnbondRequestsIndexes<'a> {
+pub struct UnbondRequestsIndexes<'a> {
     // pk goes to second tuple element
     pub user: MultiIndex<'a, String, UnbondRequest, Vec<u8>>,
 }

@@ -1,21 +1,27 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coins, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, DistributionMsg, Env,
-    Event, MessageInfo, Order, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    coins, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
+    DistributionMsg, Env, Event, MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg,
+    Uint128, WasmMsg,
 };
+use cw20::Cw20ReceiveMsg;
 
-use steak::hub::{Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, UnbondRequest};
-use steak::vault_token::{TokenInstantiator, REPLY_REGISTER_RECEIVED_COINS};
+use crate::hub::{
+    Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, ReceiveMsg,
+    UnbondRequest,
+};
+use crate::queries;
+use crate::vault_token::{reply_save_token, TokenInstantiator, REPLY_REGISTER_RECEIVED_COINS};
 
-use crate::helpers::{query_delegation, query_delegations};
+use crate::error::ContractError;
+use crate::helpers::{parse_received_fund, query_delegation, query_delegations, unwrap_reply};
 use crate::math::{
     compute_mint_amount, compute_redelegations_for_rebalancing, compute_redelegations_for_removal,
     compute_unbond_amount, compute_undelegations, reconcile_batches,
 };
 use crate::state::{State, STEAK_TOKEN_KEY};
 use crate::types::{Coins, Delegation};
-use steak::error::ContractError;
 
 //--------------------------------------------------------------------------------------------------
 // Instantiation
@@ -65,6 +71,151 @@ pub fn instantiate(
     let init_token_msg = token_instantiator.instantiate(deps, env)?;
 
     Ok(Response::new().add_submessage(init_token_msg))
+}
+
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
+    let steak_token = State::default().steak_token.load(deps.storage)?;
+    let api = deps.api;
+    match msg {
+        ExecuteMsg::Receive(cw20_msg) => receive(deps, env, info, cw20_msg),
+        ExecuteMsg::Bond { receiver } => bond(
+            deps,
+            env,
+            receiver
+                .map(|s| api.addr_validate(&s))
+                .transpose()?
+                .unwrap_or(info.sender),
+            parse_received_fund(&info.funds, "uosmo")?,
+        ),
+        ExecuteMsg::WithdrawUnbonded { receiver } => withdraw_unbonded(
+            deps,
+            env,
+            info.sender.clone(),
+            receiver
+                .map(|s| api.addr_validate(&s))
+                .transpose()?
+                .unwrap_or_else(|| info.sender.clone()),
+        ),
+        ExecuteMsg::AddValidator { validator } => add_validator(deps, info.sender, validator),
+        ExecuteMsg::RemoveValidator { validator } => {
+            remove_validator(deps, env, info.sender, validator)
+        }
+        ExecuteMsg::TransferOwnership { new_owner } => {
+            transfer_ownership(deps, info.sender, new_owner)
+        }
+        ExecuteMsg::AcceptOwnership {} => accept_ownership(deps, info.sender),
+        ExecuteMsg::Harvest {} => harvest(deps, env),
+        ExecuteMsg::Rebalance {} => rebalance(deps, env),
+        ExecuteMsg::Reconcile {} => reconcile(deps, env),
+        ExecuteMsg::SubmitBatch {} => submit_batch(deps, env),
+        ExecuteMsg::QueueUnbond { receiver } => queue_unbond(
+            deps,
+            env,
+            info.clone(),
+            receiver
+                .map(|s| api.addr_validate(&s))
+                .transpose()?
+                .unwrap_or_else(|| info.sender.clone()),
+            parse_received_fund(&info.funds, &steak_token.to_string())?,
+        ),
+        ExecuteMsg::Callback(callback_msg) => callback(deps, env, info, callback_msg),
+    }
+}
+
+fn receive(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    cw20_msg: Cw20ReceiveMsg,
+) -> Result<Response, ContractError> {
+    let api = deps.api;
+    match from_binary(&cw20_msg.msg)? {
+        ReceiveMsg::QueueUnbond { receiver } => {
+            let state = State::default();
+
+            let steak_token = state.steak_token.load(deps.storage)?;
+            match steak_token {
+                crate::vault_token::Token::Osmosis { denom: _ } => {
+                    return Err(ContractError::IncorrectQueueUnbondMessage {});
+                }
+                crate::vault_token::Token::Cw20 { address } => {
+                    if info.sender != address {
+                        return Err(ContractError::InvalidCoinSent {});
+                    }
+                    return queue_unbond(
+                        deps,
+                        env,
+                        info,
+                        api.addr_validate(&receiver.unwrap_or(cw20_msg.sender))?,
+                        cw20_msg.amount,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn callback(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    callback_msg: CallbackMsg,
+) -> Result<Response, ContractError> {
+    if env.contract.address != info.sender {
+        return Err(ContractError::InvalidCallbackSender {});
+    }
+
+    match callback_msg {
+        CallbackMsg::Reinvest {} => reinvest(deps, env),
+    }
+}
+
+pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
+    match reply.id {
+        REPLY_REGISTER_RECEIVED_COINS => {
+            register_received_coins(deps, env, unwrap_reply(reply)?.events)
+        }
+        REPLY_SAVE_CW20_ADDRESS => reply_save_token(deps, reply).map_err(|e| e.into()),
+        REPLY_SAVE_OSMOSIS_DENOM => reply_save_token(deps, reply).map_err(|e| e.into()),
+        id => Err(ContractError::InvalidReplyId { id: id }),
+    }
+}
+
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::Config {} => to_binary(&queries::config(deps)?),
+        QueryMsg::State {} => to_binary(&queries::state(deps, env)?),
+        QueryMsg::PendingBatch {} => to_binary(&queries::pending_batch(deps)?),
+        QueryMsg::PreviousBatch(id) => to_binary(&queries::previous_batch(deps, id)?),
+        QueryMsg::PreviousBatches { start_after, limit } => {
+            to_binary(&queries::previous_batches(deps, start_after, limit)?)
+        }
+        QueryMsg::UnbondRequestsByBatch {
+            id,
+            start_after,
+            limit,
+        } => to_binary(&queries::unbond_requests_by_batch(
+            deps,
+            id,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::UnbondRequestsByUser {
+            user,
+            start_after,
+            limit,
+        } => to_binary(&queries::unbond_requests_by_user(
+            deps,
+            user,
+            start_after,
+            limit,
+        )?),
+    }
 }
 
 //--------------------------------------------------------------------------------------------------

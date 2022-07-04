@@ -2,7 +2,7 @@ use std::{cmp, cmp::Ordering};
 
 use cosmwasm_std::Uint128;
 
-use steak::hub::Batch;
+use crate::hub::Batch;
 
 use crate::types::{Delegation, Redelegation, Undelegation};
 
@@ -13,7 +13,7 @@ use crate::types::{Delegation, Redelegation, Undelegation};
 /// Compute the amount of Steak token to mint for a specific Osmo stake amount. If current total
 /// staked amount is zero, we use 1 usteak = 1 uosmo; otherwise, we calculate base on the current
 /// uosmo per ustake ratio.
-pub(crate) fn compute_mint_amount(
+pub fn compute_mint_amount(
     usteak_supply: Uint128,
     uosmo_to_bond: Uint128,
     current_delegations: &[Delegation],
@@ -32,7 +32,7 @@ pub(crate) fn compute_mint_amount(
 ///
 /// There is no way `usteak` total supply is zero when the user is senting a non-zero amount of `usteak`
 /// to burn, so we don't need to handle division-by-zero here
-pub(crate) fn compute_unbond_amount(
+pub fn compute_unbond_amount(
     usteak_supply: Uint128,
     usteak_to_burn: Uint128,
     current_delegations: &[Delegation],
@@ -51,7 +51,7 @@ pub(crate) fn compute_unbond_amount(
 ///
 /// This function is based on Lido's implementation:
 /// https://github.com/lidofinance/lido-terra-contracts/blob/v1.0.2/contracts/lido_terra_validators_registry/src/common.rs#L55-102
-pub(crate) fn compute_undelegations(
+pub fn compute_undelegations(
     uosmo_to_unbond: Uint128,
     current_delegations: &[Delegation],
 ) -> Vec<Undelegation> {
@@ -95,7 +95,7 @@ pub(crate) fn compute_undelegations(
 ///
 /// This function is based on Lido's implementation:
 /// https://github.com/lidofinance/lido-terra-contracts/blob/v1.0.2/contracts/lido_terra_validators_registry/src/common.rs#L19-L53
-pub(crate) fn compute_redelegations_for_removal(
+pub fn compute_redelegations_for_removal(
     delegation_to_remove: &Delegation,
     current_delegations: &[Delegation],
 ) -> Vec<Redelegation> {
@@ -141,7 +141,7 @@ pub(crate) fn compute_redelegations_for_removal(
 /// this sentence makes sense)
 ///
 /// This algorithm does not guarantee the minimal number of moves, but is the best I can some up with...
-pub(crate) fn compute_redelegations_for_rebalancing(
+pub fn compute_redelegations_for_rebalancing(
     current_delegations: &[Delegation],
 ) -> Vec<Redelegation> {
     let uosmo_staked: u128 = current_delegations.iter().map(|d| d.amount).sum();
@@ -215,7 +215,7 @@ pub(crate) fn compute_redelegations_for_rebalancing(
 ///
 /// The idea of "reconciling" is based on Stader's implementation:
 /// https://github.com/stader-labs/stader-liquid-token/blob/v0.2.1/contracts/staking/src/contract.rs#L968-L1048
-pub(crate) fn reconcile_batches(batches: &mut [Batch], uosmo_to_deduct: Uint128) {
+pub fn reconcile_batches(batches: &mut [Batch], uosmo_to_deduct: Uint128) {
     let batch_count = batches.len() as u128;
     let uosmo_per_batch = uosmo_to_deduct.u128() / batch_count;
     let remainder = uosmo_to_deduct.u128() % batch_count;

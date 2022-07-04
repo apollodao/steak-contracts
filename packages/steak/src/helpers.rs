@@ -7,12 +7,12 @@ use cosmwasm_std::{
 use crate::types::Delegation;
 
 /// Unwrap a `Reply` object to extract the response
-pub(crate) fn unwrap_reply(reply: Reply) -> StdResult<SubMsgResponse> {
+pub fn unwrap_reply(reply: Reply) -> StdResult<SubMsgResponse> {
     reply.result.into_result().map_err(StdError::generic_err)
 }
 
 /// Query the amounts of OSMO a staker is delegating to a specific validator
-pub(crate) fn query_delegation(
+pub fn query_delegation(
     querier: &QuerierWrapper,
     validator: &str,
     delegator_addr: &Addr,
@@ -27,7 +27,7 @@ pub(crate) fn query_delegation(
 }
 
 /// Query the amounts of OSMO a staker is delegating to each of the validators specified
-pub(crate) fn query_delegations(
+pub fn query_delegations(
     querier: &QuerierWrapper,
     validators: &[String],
     delegator_addr: &Addr,
@@ -48,7 +48,7 @@ pub(crate) fn query_delegations(
 /// character that is not a number. Split the string at that index.
 ///
 /// This assumes the denom never starts with a number, which is true on Terra.
-pub(crate) fn parse_coin(s: &str) -> StdResult<Coin> {
+pub fn parse_coin(s: &str) -> StdResult<Coin> {
     for (i, c) in s.chars().enumerate() {
         if c.is_alphabetic() {
             let amount = Uint128::from_str(&s[..i])?;
@@ -65,7 +65,7 @@ pub(crate) fn parse_coin(s: &str) -> StdResult<Coin> {
 
 /// Find the amount of a denom sent along a message, assert it is non-zero, and no other denom were
 /// sent together
-pub(crate) fn parse_received_fund(funds: &[Coin], denom: &str) -> StdResult<Uint128> {
+pub fn parse_received_fund(funds: &[Coin], denom: &str) -> StdResult<Uint128> {
     if funds.len() != 1 {
         return Err(StdError::generic_err(format!(
             "must deposit exactly one coin; received {}",

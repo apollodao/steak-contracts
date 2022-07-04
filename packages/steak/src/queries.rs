@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Decimal, Deps, Env, Order, StdResult, Uint128};
 use cw_storage_plus::{Bound, CwIntKey};
 
-use steak::hub::{
+use crate::hub::{
     Batch, ConfigResponse, PendingBatch, StateResponse, UnbondRequestsByBatchResponseItem,
     UnbondRequestsByUserResponseItem,
 };

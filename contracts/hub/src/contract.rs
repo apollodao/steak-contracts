@@ -1,17 +1,9 @@
-use crate::helpers::{parse_received_fund, unwrap_reply};
-use crate::state::State;
-use crate::{execute, queries};
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult,
+    entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
 };
-use cw20::Cw20ReceiveMsg;
 use steak::error::ContractError;
-use steak::hub::{CallbackMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, ReceiveMsg};
-use steak::vault_token::reply_save_token;
-use steak::vault_token::{
-    REPLY_REGISTER_RECEIVED_COINS, REPLY_SAVE_CW20_ADDRESS, REPLY_SAVE_OSMOSIS_DENOM,
-};
+use steak::execute;
+use steak::hub::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 #[entry_point]
 pub fn instantiate(
@@ -30,147 +22,17 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    let steak_token = State::default().steak_token.load(deps.storage)?;
-    let api = deps.api;
-    match msg {
-        ExecuteMsg::Receive(cw20_msg) => receive(deps, env, info, cw20_msg),
-        ExecuteMsg::Bond { receiver } => execute::bond(
-            deps,
-            env,
-            receiver
-                .map(|s| api.addr_validate(&s))
-                .transpose()?
-                .unwrap_or(info.sender),
-            parse_received_fund(&info.funds, "uosmo")?,
-        ),
-        ExecuteMsg::WithdrawUnbonded { receiver } => execute::withdraw_unbonded(
-            deps,
-            env,
-            info.sender.clone(),
-            receiver
-                .map(|s| api.addr_validate(&s))
-                .transpose()?
-                .unwrap_or_else(|| info.sender.clone()),
-        ),
-        ExecuteMsg::AddValidator { validator } => {
-            execute::add_validator(deps, info.sender, validator)
-        }
-        ExecuteMsg::RemoveValidator { validator } => {
-            execute::remove_validator(deps, env, info.sender, validator)
-        }
-        ExecuteMsg::TransferOwnership { new_owner } => {
-            execute::transfer_ownership(deps, info.sender, new_owner)
-        }
-        ExecuteMsg::AcceptOwnership {} => execute::accept_ownership(deps, info.sender),
-        ExecuteMsg::Harvest {} => execute::harvest(deps, env),
-        ExecuteMsg::Rebalance {} => execute::rebalance(deps, env),
-        ExecuteMsg::Reconcile {} => execute::reconcile(deps, env),
-        ExecuteMsg::SubmitBatch {} => execute::submit_batch(deps, env),
-        ExecuteMsg::QueueUnbond { receiver } => execute::queue_unbond(
-            deps,
-            env,
-            info.clone(),
-            receiver
-                .map(|s| api.addr_validate(&s))
-                .transpose()?
-                .unwrap_or_else(|| info.sender.clone()),
-            parse_received_fund(&info.funds, &steak_token.to_string())?,
-        ),
-        ExecuteMsg::Callback(callback_msg) => callback(deps, env, info, callback_msg),
-    }
-}
-
-fn receive(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    cw20_msg: Cw20ReceiveMsg,
-) -> Result<Response, ContractError> {
-    let api = deps.api;
-    match from_binary(&cw20_msg.msg)? {
-        ReceiveMsg::QueueUnbond { receiver } => {
-            let state = State::default();
-
-            let steak_token = state.steak_token.load(deps.storage)?;
-            match steak_token {
-                steak::vault_token::Token::Osmosis { denom: _ } => {
-                    return Err(ContractError::IncorrectQueueUnbondMessage {});
-                }
-                steak::vault_token::Token::Cw20 { address } => {
-                    if info.sender != address {
-                        return Err(ContractError::InvalidCoinSent {});
-                    }
-                    return execute::queue_unbond(
-                        deps,
-                        env,
-                        info,
-                        api.addr_validate(&receiver.unwrap_or(cw20_msg.sender))?,
-                        cw20_msg.amount,
-                    );
-                }
-            }
-        }
-    }
-}
-
-fn callback(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    callback_msg: CallbackMsg,
-) -> Result<Response, ContractError> {
-    if env.contract.address != info.sender {
-        return Err(ContractError::InvalidCallbackSender {});
-    }
-
-    match callback_msg {
-        CallbackMsg::Reinvest {} => execute::reinvest(deps, env),
-    }
+    execute::execute(deps, env, info, msg)
 }
 
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
-    match reply.id {
-        REPLY_REGISTER_RECEIVED_COINS => {
-            execute::register_received_coins(deps, env, unwrap_reply(reply)?.events)
-        }
-        REPLY_SAVE_CW20_ADDRESS => reply_save_token(deps, reply).map_err(|e| e.into()),
-        REPLY_SAVE_OSMOSIS_DENOM => reply_save_token(deps, reply).map_err(|e| e.into()),
-        id => Err(ContractError::InvalidReplyId { id: id }),
-    }
+    execute::reply(deps, env, reply)
 }
 
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::Config {} => to_binary(&queries::config(deps)?),
-        QueryMsg::State {} => to_binary(&queries::state(deps, env)?),
-        QueryMsg::PendingBatch {} => to_binary(&queries::pending_batch(deps)?),
-        QueryMsg::PreviousBatch(id) => to_binary(&queries::previous_batch(deps, id)?),
-        QueryMsg::PreviousBatches { start_after, limit } => {
-            to_binary(&queries::previous_batches(deps, start_after, limit)?)
-        }
-        QueryMsg::UnbondRequestsByBatch {
-            id,
-            start_after,
-            limit,
-        } => to_binary(&queries::unbond_requests_by_batch(
-            deps,
-            id,
-            start_after,
-            limit,
-        )?),
-        QueryMsg::UnbondRequestsByUser {
-            user,
-            start_after,
-            limit,
-        } => to_binary(&queries::unbond_requests_by_user(
-            deps,
-            user,
-            start_after,
-            limit,
-        )?),
-    }
+    execute::query(deps, env, msg)
 }
 
 #[entry_point]
