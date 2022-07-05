@@ -6,7 +6,8 @@ use crate::{
 };
 use cosmwasm_std::{Addr, Coin, Decimal, StdError, Storage, Uint128};
 use cw_asset::{
-    osmosis::OsmosisDenomInitMsg, Asset, AssetInfo, Burn, Instantiate, Mint, Transferable,
+    osmosis::{OsmosisCoin, OsmosisDenomInitMsg},
+    Asset, AssetInfo, Burn, Instantiate, Mint, Transferable,
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 
@@ -18,6 +19,8 @@ pub trait SteakToken:
     Instantiate<OsmosisDenomInitMsg> + Transferable + Mint + Burn + TryFrom<Asset, Error = StdError>
 {
 }
+
+impl SteakToken for OsmosisCoin {}
 
 pub struct State<'a> {
     /// Account who can call certain privileged functions

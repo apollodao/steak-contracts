@@ -463,6 +463,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
+name = "osmosis-steak-hub"
+version = "2.0.0"
+dependencies = [
+ "apollo-proto-rust",
+ "cosmwasm-std",
+ "cw-asset",
+ "cw-storage-plus",
+ "cw20",
+ "prost",
+ "serde",
+ "steak",
+ "thiserror",
+]
+
+[[package]]
 name = "pkcs8"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -700,20 +715,6 @@ dependencies = [
  "prost",
  "schemars",
  "serde",
- "thiserror",
-]
-
-[[package]]
-name = "steak-hub"
-version = "2.0.0"
-dependencies = [
- "apollo-proto-rust",
- "cosmwasm-std",
- "cw-storage-plus",
- "cw20",
- "prost",
- "serde",
- "steak",
  "thiserror",
 ]
 
