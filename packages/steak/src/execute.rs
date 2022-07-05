@@ -84,7 +84,6 @@ pub fn execute<T: SteakToken>(
     let steak_token = State::default().steak_token.load(deps.storage)?;
     let api = deps.api;
     match msg {
-        ExecuteMsg::Receive(cw20_msg) => receive::<T>(deps, env, info, cw20_msg),
         ExecuteMsg::Bond { receiver } => bond::<T>(
             deps,
             env,
@@ -126,39 +125,6 @@ pub fn execute<T: SteakToken>(
             parse_received_fund(&info.funds, &steak_token.to_string())?,
         ),
         ExecuteMsg::Callback(callback_msg) => callback::<T>(deps, env, info, callback_msg),
-    }
-}
-
-fn receive<T: SteakToken>(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    cw20_msg: Cw20ReceiveMsg,
-) -> Result<Response, ContractError> {
-    let api = deps.api;
-    match from_binary(&cw20_msg.msg)? {
-        ReceiveMsg::QueueUnbond { receiver } => {
-            let state = State::<T>::default();
-
-            let steak_token = state.steak_token.load(deps.storage)?;
-            match steak_token {
-                crate::vault_token::Token::Osmosis { denom: _ } => {
-                    return Err(ContractError::IncorrectQueueUnbondMessage {});
-                }
-                crate::vault_token::Token::Cw20 { address } => {
-                    if info.sender != address {
-                        return Err(ContractError::InvalidCoinSent {});
-                    }
-                    return queue_unbond(
-                        deps,
-                        env,
-                        info,
-                        api.addr_validate(&receiver.unwrap_or(cw20_msg.sender))?,
-                        cw20_msg.amount,
-                    );
-                }
-            }
-        }
     }
 }
 
@@ -449,7 +415,7 @@ pub fn queue_unbond(
     // transfer_from_msg is not implemented and will return Err. In that case
     // parse the received funds to assert
     let mut msgs: Vec<CosmosMsg> = vec![];
-    match steak_token.transfer_from_msg(info.sender, env.contract.address) {
+    match steak_token.transfer_from_msg(info.sender, env.contract.address.clone()) {
         Ok(transfer_from_msg) => msgs.push(transfer_from_msg),
         Err(_) => {
             let steak_coin: Coin = steak_token.try_into()?;
@@ -483,7 +449,7 @@ pub fn queue_unbond(
     if env.block.time.seconds() >= pending_batch.est_unbond_start_time {
         msgs.push(
             WasmMsg::Execute {
-                contract_addr: env.contract.address.into(),
+                contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::SubmitBatch {})?,
                 funds: vec![],
             }
