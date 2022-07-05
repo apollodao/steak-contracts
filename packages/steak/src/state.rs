@@ -6,8 +6,8 @@ use crate::{
 };
 use cosmwasm_std::{Addr, Coin, Decimal, StdError, Storage, Uint128};
 use cw_asset::{
-    osmosis::{OsmosisCoin, OsmosisDenomInitMsg},
-    Asset, AssetInfo, Burn, Instantiate, Mint, Transferable,
+    cw20_asset::Cw20Asset, osmosis::OsmosisCoin, Asset, AssetInfo, Burn, Instantiate, Mint,
+    Transferable,
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 
@@ -15,12 +15,11 @@ use crate::error::ContractError;
 
 use crate::types::BooleanKey;
 
-pub trait SteakToken:
-    Instantiate<OsmosisDenomInitMsg> + Transferable + Mint + Burn + TryFrom<Asset, Error = StdError>
-{
-}
+pub trait SteakToken: Transferable + Mint + Burn + TryFrom<Asset, Error = StdError> {}
 
 impl SteakToken for OsmosisCoin {}
+
+impl SteakToken for Cw20Asset {}
 
 pub struct State<'a> {
     /// Account who can call certain privileged functions

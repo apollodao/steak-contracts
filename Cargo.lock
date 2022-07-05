@@ -199,7 +199,7 @@ dependencies = [
 [[package]]
 name = "cw-asset"
 version = "2.1.0"
-source = "git+https://github.com/apollodao/cw-asset.git?branch=dev/tokenideas#95dbd01ea1c19db43a8bb362d6bc3ab3b9cd092c"
+source = "git+https://github.com/apollodao/cw-asset.git?branch=dev/tokenideas#ccf2de125300d9eacc42f6af6113af467ddca5fa"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",

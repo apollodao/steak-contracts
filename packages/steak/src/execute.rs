@@ -7,7 +7,7 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::Transferable;
+use cw_asset::{AssetInfo, Instantiate, Transferable};
 
 use crate::hub::{
     Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, ReceiveMsg,
@@ -29,7 +29,7 @@ use crate::types::{Coins, Delegation};
 // Instantiation
 //--------------------------------------------------------------------------------------------------
 
-pub fn instantiate<T: SteakToken>(
+pub fn instantiate<T: Instantiate<AssetInfo>>(
     deps: DepsMut,
     env: Env,
     msg: InstantiateMsg,
@@ -143,13 +143,20 @@ fn callback<T: SteakToken>(
     }
 }
 
-pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
+pub fn reply<T: Instantiate<AssetInfo>>(
+    deps: DepsMut,
+    env: Env,
+    reply: Reply,
+) -> Result<Response, ContractError> {
+    let state = State::default();
+    if let Ok(res) = T::save_token(deps.storage, &reply, state.steak_token) {
+        return Ok(res);
+    }
+
     match reply.id {
         REPLY_REGISTER_RECEIVED_COINS => {
             register_received_coins(deps, env, unwrap_reply(reply)?.events)
         }
-        REPLY_SAVE_CW20_ADDRESS => reply_save_token(deps, reply).map_err(|e| e.into()),
-        REPLY_SAVE_OSMOSIS_DENOM => reply_save_token(deps, reply).map_err(|e| e.into()),
         id => Err(ContractError::InvalidReplyId { id: id }),
     }
 }
