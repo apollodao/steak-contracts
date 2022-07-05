@@ -1,13 +1,23 @@
+use std::convert::TryFrom;
+
 use crate::{
     hub::{Batch, PendingBatch, UnbondRequest},
     vault_token::Token,
 };
-use cosmwasm_std::{Addr, Coin, Decimal, Storage, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, StdError, Storage, Uint128};
+use cw_asset::{
+    osmosis::OsmosisDenomInitMsg, Asset, AssetInfo, Burn, Instantiate, Mint, Transferable,
+};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 
 use crate::error::ContractError;
 
 use crate::types::BooleanKey;
+
+pub trait SteakToken:
+    Instantiate<OsmosisDenomInitMsg> + Transferable + Mint + Burn + TryFrom<Asset, Error = StdError>
+{
+}
 
 pub struct State<'a> {
     /// Account who can call certain privileged functions
@@ -15,7 +25,7 @@ pub struct State<'a> {
     /// Pending ownership transfer, awaiting acceptance by the new owner
     pub new_owner: Item<'a, Addr>,
     /// Denom of the Steak coin
-    pub steak_token: Item<'a, Token>,
+    pub steak_token: Item<'a, AssetInfo>,
     /// How often the unbonding queue is to be executed
     pub epoch_period: Item<'a, u64>,
     /// The staking module's unbonding time, in seconds

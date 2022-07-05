@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::str::FromStr;
 
 use cosmwasm_std::{
@@ -6,6 +7,7 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20::Cw20ReceiveMsg;
+use cw_asset::Transferable;
 
 use crate::hub::{
     Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, ReceiveMsg,
@@ -20,14 +22,14 @@ use crate::math::{
     compute_mint_amount, compute_redelegations_for_rebalancing, compute_redelegations_for_removal,
     compute_unbond_amount, compute_undelegations, reconcile_batches,
 };
-use crate::state::{State, STEAK_TOKEN_KEY};
+use crate::state::{State, SteakToken, STEAK_TOKEN_KEY};
 use crate::types::{Coins, Delegation};
 
 //--------------------------------------------------------------------------------------------------
 // Instantiation
 //--------------------------------------------------------------------------------------------------
 
-pub fn instantiate(
+pub fn instantiate<T: SteakToken>(
     deps: DepsMut,
     env: Env,
     msg: InstantiateMsg,
@@ -73,7 +75,7 @@ pub fn instantiate(
     Ok(Response::new().add_submessage(init_token_msg))
 }
 
-pub fn execute(
+pub fn execute<T: SteakToken>(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -82,8 +84,8 @@ pub fn execute(
     let steak_token = State::default().steak_token.load(deps.storage)?;
     let api = deps.api;
     match msg {
-        ExecuteMsg::Receive(cw20_msg) => receive(deps, env, info, cw20_msg),
-        ExecuteMsg::Bond { receiver } => bond(
+        ExecuteMsg::Receive(cw20_msg) => receive::<T>(deps, env, info, cw20_msg),
+        ExecuteMsg::Bond { receiver } => bond::<T>(
             deps,
             env,
             receiver
@@ -112,7 +114,7 @@ pub fn execute(
         ExecuteMsg::Harvest {} => harvest(deps, env),
         ExecuteMsg::Rebalance {} => rebalance(deps, env),
         ExecuteMsg::Reconcile {} => reconcile(deps, env),
-        ExecuteMsg::SubmitBatch {} => submit_batch(deps, env),
+        ExecuteMsg::SubmitBatch {} => submit_batch::<T>(deps, env),
         ExecuteMsg::QueueUnbond { receiver } => queue_unbond(
             deps,
             env,
@@ -123,11 +125,11 @@ pub fn execute(
                 .unwrap_or_else(|| info.sender.clone()),
             parse_received_fund(&info.funds, &steak_token.to_string())?,
         ),
-        ExecuteMsg::Callback(callback_msg) => callback(deps, env, info, callback_msg),
+        ExecuteMsg::Callback(callback_msg) => callback::<T>(deps, env, info, callback_msg),
     }
 }
 
-fn receive(
+fn receive<T: SteakToken>(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -136,7 +138,7 @@ fn receive(
     let api = deps.api;
     match from_binary(&cw20_msg.msg)? {
         ReceiveMsg::QueueUnbond { receiver } => {
-            let state = State::default();
+            let state = State::<T>::default();
 
             let steak_token = state.steak_token.load(deps.storage)?;
             match steak_token {
@@ -160,7 +162,7 @@ fn receive(
     }
 }
 
-fn callback(
+fn callback<T: SteakToken>(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -171,7 +173,7 @@ fn callback(
     }
 
     match callback_msg {
-        CallbackMsg::Reinvest {} => reinvest(deps, env),
+        CallbackMsg::Reinvest {} => reinvest::<T>(deps, env),
     }
 }
 
@@ -230,14 +232,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 /// smallest amount of delegation. If delegations become severely unbalance as a result of this
 /// (e.g. when a single user makes a very big deposit), anyone can invoke `ExecuteMsg::Rebalance`
 /// to balance the delegations.
-pub fn bond(
+pub fn bond<T: SteakToken>(
     deps: DepsMut,
     env: Env,
     receiver: Addr,
     denom_to_bond: Uint128,
 ) -> Result<Response, ContractError> {
     let state = State::default();
-    let steak_token = state.steak_token.load(deps.storage)?;
     let validators = state.validators.load(deps.storage)?;
 
     // Query the current delegations made to validators, and find the validator with the smallest
@@ -257,6 +258,12 @@ pub fn bond(
     let usteak_supply = state.total_usteak_supply.load(deps.storage)?;
     let usteak_to_mint = compute_mint_amount(usteak_supply, denom_to_bond, &delegations);
 
+    let steak_token: T = state
+        .steak_token
+        .load(deps.storage)?
+        .to_asset(usteak_to_mint)
+        .try_into()?;
+
     state
         .total_usteak_supply
         .update(deps.storage, |x| -> StdResult<_> {
@@ -273,7 +280,7 @@ pub fn bond(
         REPLY_REGISTER_RECEIVED_COINS,
     );
 
-    let mint_msg = steak_token.mint(&env, amount.into(), receiver.to_string())?;
+    let mint_msg = steak_token.mint_msg(&env.contract.address, receiver.to_string())?;
 
     let event = Event::new("steakhub/bonded")
         .add_attribute("time", env.block.time.seconds().to_string())
@@ -318,7 +325,7 @@ pub fn harvest(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 /// execution.
 /// 2. Same as with `bond`, in the latest implementation we only delegate staking rewards with the
 /// validator that has the smallest delegation amount.
-pub fn reinvest(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn reinvest<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let state = State::default();
     let validators = state.validators.load(deps.storage)?;
     let mut unlocked_coins = state.unlocked_coins.load(deps.storage)?;
@@ -431,16 +438,28 @@ pub fn queue_unbond(
 ) -> Result<Response, ContractError> {
     let state = State::default();
 
-    let steak_token = state.steak_token.load(deps.storage)?;
+    let steak_token = state
+        .steak_token
+        .load(deps.storage)?
+        .to_asset(usteak_to_burn);
 
-    // Use Token::assert_received_token to check if the token is received.
+    // Use Asset::transfer_from_msg to check if the token is received.
     // If allowance has not been granted for a Cw20 token the TransferFrom
-    // will fail. Causing the transaction to revert.
+    // will fail. Causing the transaction to revert. If Asset is native denom
+    // transfer_from_msg is not implemented and will return Err. In that case
+    // parse the received funds to assert
     let mut msgs: Vec<CosmosMsg> = vec![];
-    if let Some(transfer_from_msg) =
-        steak_token.assert_received_token(&env, &info, usteak_to_burn)?
-    {
-        msgs.push(transfer_from_msg);
+    match steak_token.transfer_from_msg(info.sender, env.contract.address) {
+        Ok(transfer_from_msg) => msgs.push(transfer_from_msg),
+        Err(_) => {
+            let steak_coin: Coin = steak_token.try_into()?;
+            let amount = parse_received_fund(&info.funds, &steak_coin.denom)?;
+            if amount != usteak_to_burn {
+                return Err(ContractError::Std(StdError::generic_err(
+                    "received wrong amount of steak token",
+                )));
+            }
+        }
     }
 
     let mut pending_batch = state.pending_batch.load(deps.storage)?;
@@ -485,7 +504,7 @@ pub fn queue_unbond(
         .add_attribute("action", "steakhub/queue_unbond"))
 }
 
-pub fn submit_batch(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn submit_batch<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let state = State::default();
     let validators = state.validators.load(deps.storage)?;
     let unbond_period = state.unbond_period.load(deps.storage)?;
@@ -541,9 +560,13 @@ pub fn submit_batch(deps: DepsMut, env: Env) -> Result<Response, ContractError> 
         .map(|d| SubMsg::reply_on_success(d.to_cosmos_msg(), REPLY_REGISTER_RECEIVED_COINS))
         .collect::<Vec<_>>();
 
-    let steak_token = state.steak_token.load(deps.storage)?;
+    let steak_token: T = state
+        .steak_token
+        .load(deps.storage)?
+        .to_asset(pending_batch.usteak_to_burn)
+        .try_into()?;
 
-    let burn_msg = steak_token.burn(&env, pending_batch.usteak_to_burn)?;
+    let burn_msg = steak_token.burn_msg(&env.contract.address)?;
 
     state
         .total_usteak_supply
