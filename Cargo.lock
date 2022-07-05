@@ -273,6 +273,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw20-steak-hub"
+version = "2.0.0"
+dependencies = [
+ "apollo-proto-rust",
+ "cosmwasm-std",
+ "cw-asset",
+ "cw-storage-plus",
+ "cw20",
+ "prost",
+ "serde",
+ "steak",
+ "thiserror",
+]
+
+[[package]]
 name = "der"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
