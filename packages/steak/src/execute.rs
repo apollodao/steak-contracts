@@ -22,7 +22,7 @@ use crate::math::{
     compute_mint_amount, compute_redelegations_for_rebalancing, compute_redelegations_for_removal,
     compute_unbond_amount, compute_undelegations, reconcile_batches,
 };
-use crate::state::{State, SteakToken, STEAK_TOKEN_KEY};
+use crate::state::{State, SteakToken};
 use crate::types::{Coins, Delegation};
 
 //--------------------------------------------------------------------------------------------------
@@ -32,7 +32,7 @@ use crate::types::{Coins, Delegation};
 pub fn instantiate<T: Instantiate<AssetInfo>>(
     deps: DepsMut,
     env: Env,
-    msg: InstantiateMsg,
+    msg: InstantiateMsg<T>,
 ) -> Result<Response, ContractError> {
     let state = State::default();
 
@@ -65,12 +65,7 @@ pub fn instantiate<T: Instantiate<AssetInfo>>(
         .performance_fee
         .save(deps.storage, &Decimal::percent(msg.performance_fee))?;
 
-    let token_instantiator = TokenInstantiator {
-        item_key: STEAK_TOKEN_KEY.to_string(),
-        init_info: msg.token_init_info,
-    };
-
-    let init_token_msg = token_instantiator.instantiate(deps, env)?;
+    let init_token_msg = msg.token_instantiator.instantiate_msg(deps, env)?;
 
     Ok(Response::new().add_submessage(init_token_msg))
 }
@@ -81,7 +76,6 @@ pub fn execute<T: SteakToken>(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    let steak_token = State::default().steak_token.load(deps.storage)?;
     let api = deps.api;
     match msg {
         ExecuteMsg::Bond { receiver } => bond::<T>(
@@ -114,7 +108,7 @@ pub fn execute<T: SteakToken>(
         ExecuteMsg::Rebalance {} => rebalance(deps, env),
         ExecuteMsg::Reconcile {} => reconcile(deps, env),
         ExecuteMsg::SubmitBatch {} => submit_batch::<T>(deps, env),
-        ExecuteMsg::QueueUnbond { receiver } => queue_unbond(
+        ExecuteMsg::QueueUnbond { receiver, amount } => queue_unbond(
             deps,
             env,
             info.clone(),
@@ -122,7 +116,7 @@ pub fn execute<T: SteakToken>(
                 .map(|s| api.addr_validate(&s))
                 .transpose()?
                 .unwrap_or_else(|| info.sender.clone()),
-            parse_received_fund(&info.funds, &steak_token.to_string())?,
+            amount,
         ),
         ExecuteMsg::Callback(callback_msg) => callback::<T>(deps, env, info, callback_msg),
     }
@@ -149,7 +143,8 @@ pub fn reply<T: Instantiate<AssetInfo>>(
     reply: Reply,
 ) -> Result<Response, ContractError> {
     let state = State::default();
-    if let Ok(res) = T::save_asset(deps.storage, deps.api, &reply, state.steak_token) {
+    let r = T::save_asset(deps.storage, deps.api, &reply, state.steak_token);
+    if let Ok(res) = r {
         return Ok(res);
     }
 
@@ -211,6 +206,8 @@ pub fn bond<T: SteakToken>(
     receiver: Addr,
     denom_to_bond: Uint128,
 ) -> Result<Response, ContractError> {
+    // catman error
+
     let state = State::default();
     let validators = state.validators.load(deps.storage)?;
 

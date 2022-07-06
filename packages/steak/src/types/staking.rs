@@ -23,7 +23,7 @@ impl Delegation {
     }
 }
 
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Debug, PartialEq)]
 pub struct Undelegation {
     pub validator: String,
     pub amount: u128,
@@ -45,7 +45,7 @@ impl Undelegation {
     }
 }
 
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Debug, PartialEq)]
 pub struct Redelegation {
     pub src: String,
     pub dst: String,

@@ -1,12 +1,9 @@
 use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Decimal, Empty, StdResult, Uint128, WasmMsg};
-use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::vault_token::TokenInitInfo;
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InstantiateMsg {
+pub struct InstantiateMsg<T> {
     /// Account who can call certain privileged functions
     pub owner: String,
     /// Name of the liquid staking token
@@ -25,7 +22,7 @@ pub struct InstantiateMsg {
     pub distribution_contract: String,
     /// Fee that is awarded to distribution contract when harvesting rewards
     pub performance_fee: u64,
-    pub token_init_info: TokenInitInfo,
+    pub token_instantiator: T,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -53,7 +50,10 @@ pub enum ExecuteMsg {
     SubmitBatch {},
     /// Submit an unbonding request to the current unbonding queue; automatically invokes `unbond`
     /// if `epoch_time` has elapsed since when the last unbonding queue was executed.
-    QueueUnbond { receiver: Option<String> },
+    QueueUnbond {
+        amount: Uint128,
+        receiver: Option<String>,
+    },
     /// Callbacks; can only be invoked by the contract itself
     Callback(CallbackMsg),
 }
