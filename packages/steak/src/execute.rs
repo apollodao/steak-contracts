@@ -149,7 +149,7 @@ pub fn reply<T: Instantiate<AssetInfo>>(
     reply: Reply,
 ) -> Result<Response, ContractError> {
     let state = State::default();
-    if let Ok(res) = T::save_token(deps.storage, &reply, state.steak_token) {
+    if let Ok(res) = T::save_asset(deps.storage, deps.api, &reply, state.steak_token) {
         return Ok(res);
     }
 

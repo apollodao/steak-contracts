@@ -1,7 +1,7 @@
 use cosmwasm_std::{
     entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
 };
-use cw_asset::osmosis::OsmosisCoin;
+use cw_asset::osmosis::{OsmosisCoin, OsmosisDenomInstantiator};
 use steak::error::ContractError;
 use steak::execute;
 use steak::hub::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -13,7 +13,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    execute::instantiate::<OsmosisCoin>(deps, env, msg)
+    execute::instantiate::<OsmosisDenomInstantiator>(deps, env, msg)
 }
 
 #[entry_point]
@@ -28,7 +28,7 @@ pub fn execute(
 
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
-    execute::reply(deps, env, reply)
+    execute::reply::<OsmosisDenomInstantiator>(deps, env, reply)
 }
 
 #[entry_point]
