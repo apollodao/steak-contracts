@@ -149,6 +149,8 @@ pub fn reply<T: Instantiate<AssetInfo>>(
             CwAssetError::InvalidReplyId {} => {} // continue to default reply id match arm
             _ => return Err(err.into()),
         }
+    } else {
+        return Ok(r?);
     }
 
     match reply.id {
