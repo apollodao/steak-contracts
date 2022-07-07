@@ -7,8 +7,12 @@ use cosmwasm_std::{
 use crate::types::Delegation;
 
 /// Unwrap a `Reply` object to extract the response
-pub fn unwrap_reply(reply: Reply) -> StdResult<SubMsgResponse> {
-    reply.result.into_result().map_err(StdError::generic_err)
+pub fn unwrap_reply(reply: &Reply) -> StdResult<SubMsgResponse> {
+    reply
+        .clone()
+        .result
+        .into_result()
+        .map_err(|e| StdError::generic_err(format!("unwrap_reply - {}", e)))
 }
 
 /// Query the amounts of OSMO a staker is delegating to a specific validator

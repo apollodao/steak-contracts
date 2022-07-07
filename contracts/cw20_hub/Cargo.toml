@@ -19,7 +19,7 @@ cw20 = "0.13.2"
 cw20-base = "0.13.2"
 steak = {path = "../../packages/steak"}
 thiserror = {version = "1.0.31"}
-cw-asset = {rev = "5f2fd3d15c18995e5ec0fdbc1456469a69edd4a4", git = "https://github.com/apollodao/cw-asset.git"}
+cw-asset = {rev = "98679b247f45bb0d2e529e0ca35da84dc86ee55f", git = "https://github.com/apollodao/cw-asset.git"}
 
 [dev-dependencies]
 apollo-proto-rust = {branch = "master", git = "https://github.com/apollodao/apollo-proto-rust.git"}

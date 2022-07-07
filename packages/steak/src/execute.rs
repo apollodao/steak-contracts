@@ -2,12 +2,13 @@ use std::convert::TryInto;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coins, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
-    DistributionMsg, Env, Event, MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg,
-    Uint128, WasmMsg,
+    coins, from_binary, to_binary, Addr, Api, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps,
+    DepsMut, DistributionMsg, Env, Event, MessageInfo, Order, Reply, Response, StdError, StdResult,
+    Storage, SubMsg, SubMsgResponse, Uint128, WasmMsg,
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{AssetInfo, CwAssetError, Instantiate, Transferable};
+use cw_storage_plus::Item;
 
 use crate::hub::{
     Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, ReceiveMsg,
@@ -146,18 +147,17 @@ pub fn reply<T: Instantiate<AssetInfo>>(
     let r = T::save_asset(deps.storage, deps.api, &reply, state.steak_token);
     if let Err(err) = r {
         match err {
-            CwAssetError::InvalidReplyId {} => {} // continue to default reply id match arm
+            // continue to default reply id match arm if error is InvalidReplyId
+            CwAssetError::InvalidReplyId {} => match reply.id {
+                REPLY_REGISTER_RECEIVED_COINS => {
+                    register_received_coins(deps, env, unwrap_reply(&reply)?.events)
+                }
+                id => Err(SteakContractError::InvalidReplyId { id }),
+            },
             _ => return Err(err.into()),
         }
     } else {
         return Ok(r?);
-    }
-
-    match reply.id {
-        REPLY_REGISTER_RECEIVED_COINS => {
-            register_received_coins(deps, env, unwrap_reply(reply)?.events)
-        }
-        id => Err(SteakContractError::InvalidReplyId { id }),
     }
 }
 
