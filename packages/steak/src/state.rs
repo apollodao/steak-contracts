@@ -11,7 +11,7 @@ use cw_asset::{
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 
-use crate::error::ContractError;
+use crate::error::SteakContractError;
 
 use crate::types::BooleanKey;
 
@@ -87,12 +87,16 @@ impl Default for State<'static> {
 }
 
 impl<'a> State<'a> {
-    pub fn assert_owner(&self, storage: &dyn Storage, sender: &Addr) -> Result<(), ContractError> {
+    pub fn assert_owner(
+        &self,
+        storage: &dyn Storage,
+        sender: &Addr,
+    ) -> Result<(), SteakContractError> {
         let owner = self.owner.load(storage)?;
         if *sender == owner {
             Ok(())
         } else {
-            Err(ContractError::Unauthorized {})
+            Err(SteakContractError::Unauthorized {})
         }
     }
 }

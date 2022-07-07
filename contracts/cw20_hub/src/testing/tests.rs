@@ -17,7 +17,7 @@ use cosmwasm_std::{
 use std::{str::FromStr, vec};
 
 use crate::contract::{execute, instantiate, reply};
-use steak::error::ContractError;
+use steak::error::SteakContractError;
 use steak::helpers::{parse_coin, parse_received_fund};
 use steak::hub::{
     Batch, CallbackMsg, ConfigResponse, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg,
@@ -473,7 +473,7 @@ fn queuing_unbond() {
 
     assert_eq!(
         err,
-        ContractError::Std(StdError::generic_err(
+        SteakContractError::Std(StdError::generic_err(
             "must deposit exactly one coin; received 0"
         ))
     );
@@ -492,7 +492,7 @@ fn queuing_unbond() {
 
     assert_eq!(
         err,
-        ContractError::Std(StdError::generic_err(
+        SteakContractError::Std(StdError::generic_err(
             "expected factory/cosmos2contract/apOSMO deposit, received random"
         ))
     );
@@ -976,7 +976,7 @@ fn withdrawing_unbonded() {
     )
     .unwrap_err();
 
-    assert_eq!(err, ContractError::ZeroWithdrawableAmount {});
+    assert_eq!(err, SteakContractError::ZeroWithdrawableAmount {});
 
     // Attempt to withdraw once batches 1 and 2 have finished unbonding, but 3 has not yet
     //
@@ -1135,7 +1135,7 @@ fn adding_validator() {
     )
     .unwrap_err();
 
-    assert_eq!(err, ContractError::Unauthorized {});
+    assert_eq!(err, SteakContractError::Unauthorized {});
 
     let err = execute(
         deps.as_mut(),
@@ -1149,7 +1149,7 @@ fn adding_validator() {
 
     assert_eq!(
         err,
-        ContractError::Std(StdError::generic_err("validator is already whitelisted"))
+        SteakContractError::Std(StdError::generic_err("validator is already whitelisted"))
     );
 
     let res = execute(
@@ -1197,7 +1197,7 @@ fn removing_validator() {
     )
     .unwrap_err();
 
-    assert_eq!(err, ContractError::Unauthorized {});
+    assert_eq!(err, SteakContractError::Unauthorized {});
 
     let err = execute(
         deps.as_mut(),
@@ -1211,7 +1211,7 @@ fn removing_validator() {
 
     assert_eq!(
         err,
-        ContractError::Std(StdError::generic_err(
+        SteakContractError::Std(StdError::generic_err(
             "validator is not already whitelisted"
         ))
     );
@@ -1265,7 +1265,7 @@ fn transferring_ownership() {
     )
     .unwrap_err();
 
-    assert_eq!(err, ContractError::Unauthorized {});
+    assert_eq!(err, SteakContractError::Unauthorized {});
 
     let res = execute(
         deps.as_mut(),
@@ -1290,7 +1290,7 @@ fn transferring_ownership() {
     )
     .unwrap_err();
 
-    assert_eq!(err, ContractError::Unauthorized {});
+    assert_eq!(err, SteakContractError::Unauthorized {});
 
     let res = execute(
         deps.as_mut(),

@@ -1,13 +1,18 @@
 use cosmwasm_std::{Coin, OverflowError, StdError};
+use cw_asset::CwAssetError;
 use thiserror::Error;
 
 /// ## Description
 /// This enum describes router-test contract errors!
 #[derive(Error, Debug, PartialEq)]
-pub enum ContractError {
+pub enum SteakContractError {
     /// StdError
     #[error("{0}")]
     Std(#[from] StdError),
+
+    /// CwAssetError
+    #[error("{0}")]
+    CwAsset(#[from] CwAssetError),
 
     /// Unauthorized Error
     #[error("Unauthorized")]
@@ -67,7 +72,7 @@ pub enum ContractError {
     // Look at https://docs.rs/thiserror/1.0.31/thiserror/ for details.
 }
 
-impl From<OverflowError> for ContractError {
+impl From<OverflowError> for SteakContractError {
     fn from(o: OverflowError) -> Self {
         StdError::from(o).into()
     }

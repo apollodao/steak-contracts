@@ -7,7 +7,7 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{AssetInfo, Instantiate, Transferable};
+use cw_asset::{AssetInfo, CwAssetError, Instantiate, Transferable};
 
 use crate::hub::{
     Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, ReceiveMsg,
@@ -16,7 +16,7 @@ use crate::hub::{
 use crate::queries;
 use crate::vault_token::{reply_save_token, TokenInstantiator, REPLY_REGISTER_RECEIVED_COINS};
 
-use crate::error::ContractError;
+use crate::error::SteakContractError;
 use crate::helpers::{parse_received_fund, query_delegation, query_delegations, unwrap_reply};
 use crate::math::{
     compute_mint_amount, compute_redelegations_for_rebalancing, compute_redelegations_for_removal,
@@ -33,7 +33,7 @@ pub fn instantiate<T: Instantiate<AssetInfo>>(
     deps: DepsMut,
     env: Env,
     msg: InstantiateMsg<T>,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     let state = State::default();
 
     state
@@ -75,7 +75,7 @@ pub fn execute<T: SteakToken>(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     let api = deps.api;
     match msg {
         ExecuteMsg::Bond { receiver } => bond::<T>(
@@ -127,9 +127,9 @@ fn callback<T: SteakToken>(
     env: Env,
     info: MessageInfo,
     callback_msg: CallbackMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     if env.contract.address != info.sender {
-        return Err(ContractError::InvalidCallbackSender {});
+        return Err(SteakContractError::InvalidCallbackSender {});
     }
 
     match callback_msg {
@@ -141,18 +141,21 @@ pub fn reply<T: Instantiate<AssetInfo>>(
     deps: DepsMut,
     env: Env,
     reply: Reply,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     let state = State::default();
     let r = T::save_asset(deps.storage, deps.api, &reply, state.steak_token);
-    if let Ok(res) = r {
-        return Ok(res);
+    if let Err(err) = r {
+        match err {
+            CwAssetError::InvalidReplyId {} => {} // continue to default reply id match arm
+            _ => return Err(err.into()),
+        }
     }
 
     match reply.id {
         REPLY_REGISTER_RECEIVED_COINS => {
             register_received_coins(deps, env, unwrap_reply(reply)?.events)
         }
-        id => Err(ContractError::InvalidReplyId { id: id }),
+        id => Err(SteakContractError::InvalidReplyId { id }),
     }
 }
 
@@ -205,7 +208,7 @@ pub fn bond<T: SteakToken>(
     env: Env,
     receiver: Addr,
     denom_to_bond: Uint128,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     // catman error
 
     let state = State::default();
@@ -266,7 +269,7 @@ pub fn bond<T: SteakToken>(
         .add_attribute("action", "steakhub/bond"))
 }
 
-pub fn harvest(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn harvest(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
     let withdraw_submsgs = deps
         .querier
         .query_all_delegations(&env.contract.address)?
@@ -295,7 +298,7 @@ pub fn harvest(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 /// execution.
 /// 2. Same as with `bond`, in the latest implementation we only delegate staking rewards with the
 /// validator that has the smallest delegation amount.
-pub fn reinvest<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn reinvest<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
     let state = State::default();
     let validators = state.validators.load(deps.storage)?;
     let mut unlocked_coins = state.unlocked_coins.load(deps.storage)?;
@@ -348,7 +351,7 @@ pub fn register_received_coins(
     deps: DepsMut,
     env: Env,
     mut events: Vec<Event>,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     events.retain(|event| event.ty == "coin_received");
     if events.is_empty() {
         return Ok(Response::new());
@@ -405,7 +408,7 @@ pub fn queue_unbond(
     info: MessageInfo,
     receiver: Addr,
     usteak_to_burn: Uint128,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     let state = State::default();
 
     let steak_token = state
@@ -425,7 +428,7 @@ pub fn queue_unbond(
             let steak_coin: Coin = steak_token.try_into()?;
             let amount = parse_received_fund(&info.funds, &steak_coin.denom)?;
             if amount != usteak_to_burn {
-                return Err(ContractError::Std(StdError::generic_err(
+                return Err(SteakContractError::Std(StdError::generic_err(
                     "received wrong amount of steak token",
                 )));
             }
@@ -474,7 +477,10 @@ pub fn queue_unbond(
         .add_attribute("action", "steakhub/queue_unbond"))
 }
 
-pub fn submit_batch<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn submit_batch<T: SteakToken>(
+    deps: DepsMut,
+    env: Env,
+) -> Result<Response, SteakContractError> {
     let state = State::default();
     let validators = state.validators.load(deps.storage)?;
     let unbond_period = state.unbond_period.load(deps.storage)?;
@@ -482,7 +488,7 @@ pub fn submit_batch<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, 
 
     let current_time = env.block.time.seconds();
     if current_time < pending_batch.est_unbond_start_time {
-        return Err(ContractError::InvalidSubmitBatch {
+        return Err(SteakContractError::InvalidSubmitBatch {
             est_unbond_start_time: pending_batch.est_unbond_start_time,
         });
     }
@@ -558,7 +564,7 @@ pub fn submit_batch<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, 
         .add_attribute("action", "steakhub/unbond"))
 }
 
-pub fn reconcile(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn reconcile(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
     let state = State::default();
     let current_time = env.block.time.seconds();
 
@@ -622,7 +628,7 @@ pub fn withdraw_unbonded(
     env: Env,
     user: Addr,
     receiver: Addr,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     let state = State::default();
     let current_time = env.block.time.seconds();
 
@@ -678,7 +684,7 @@ pub fn withdraw_unbonded(
     }
 
     if total_uosmo_to_refund.is_zero() {
-        return Err(ContractError::ZeroWithdrawableAmount {});
+        return Err(SteakContractError::ZeroWithdrawableAmount {});
     }
 
     let refund_msg = CosmosMsg::Bank(BankMsg::Send {
@@ -704,7 +710,7 @@ pub fn withdraw_unbonded(
 // Ownership and management logics
 //--------------------------------------------------------------------------------------------------
 
-pub fn rebalance(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn rebalance(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
     let state = State::default();
     let validators = state.validators.load(deps.storage)?;
 
@@ -731,7 +737,7 @@ pub fn add_validator(
     deps: DepsMut,
     sender: Addr,
     validator: String,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     let state = State::default();
 
     state.assert_owner(deps.storage, &sender)?;
@@ -756,7 +762,7 @@ pub fn remove_validator(
     env: Env,
     sender: Addr,
     validator: String,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     let state = State::default();
 
     state.assert_owner(deps.storage, &sender)?;
@@ -792,7 +798,7 @@ pub fn transfer_ownership(
     deps: DepsMut,
     sender: Addr,
     new_owner: String,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SteakContractError> {
     let state = State::default();
 
     state.assert_owner(deps.storage, &sender)?;
@@ -803,14 +809,14 @@ pub fn transfer_ownership(
     Ok(Response::new().add_attribute("action", "steakhub/transfer_ownership"))
 }
 
-pub fn accept_ownership(deps: DepsMut, sender: Addr) -> Result<Response, ContractError> {
+pub fn accept_ownership(deps: DepsMut, sender: Addr) -> Result<Response, SteakContractError> {
     let state = State::default();
 
     let previous_owner = state.owner.load(deps.storage)?;
     let new_owner = state.new_owner.load(deps.storage)?;
 
     if sender != new_owner {
-        return Err(ContractError::Unauthorized {});
+        return Err(SteakContractError::Unauthorized {});
     }
 
     state.owner.save(deps.storage, &sender)?;
