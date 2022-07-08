@@ -2,17 +2,14 @@ use std::convert::TryInto;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coins, from_binary, to_binary, Addr, Api, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps,
-    DepsMut, DistributionMsg, Env, Event, MessageInfo, Order, Reply, Response, StdError, StdResult,
-    Storage, SubMsg, SubMsgResponse, Uint128, WasmMsg,
+    coins, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
+    DistributionMsg, Env, Event, MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg,
+    Uint128, WasmMsg,
 };
-use cw20::Cw20ReceiveMsg;
 use cw_asset::{AssetInfo, CwAssetError, Instantiate, Transferable};
-use cw_storage_plus::Item;
 
 use crate::hub::{
-    Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, ReceiveMsg,
-    UnbondRequest,
+    Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, UnbondRequest,
 };
 use crate::queries;
 
@@ -155,10 +152,10 @@ pub fn reply<T: Instantiate<AssetInfo>>(
                 }
                 id => Err(SteakContractError::InvalidReplyId { id }),
             },
-            _ => return Err(err.into()),
+            _ => Err(err.into()),
         }
     } else {
-        return Ok(r?);
+        Ok(r?)
     }
 }
 

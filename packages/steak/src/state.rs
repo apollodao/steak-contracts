@@ -3,8 +3,7 @@ use std::convert::TryFrom;
 use crate::hub::{Batch, PendingBatch, UnbondRequest};
 use cosmwasm_std::{Addr, Coin, Decimal, StdError, Storage, Uint128};
 use cw_asset::{
-    cw20_asset::Cw20Asset, osmosis::OsmosisCoin, Asset, AssetInfo, Burn, Instantiate, Mint,
-    Transferable,
+    cw20_asset::Cw20Asset, osmosis::OsmosisCoin, Asset, AssetInfo, Burn, Mint, Transferable,
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 
