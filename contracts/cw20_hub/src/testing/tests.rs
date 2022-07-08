@@ -1,5 +1,6 @@
 use apollo_proto_rust::{
     cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1::MsgMint,
+    OsmosisTypeURLs,
 };
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, Attribute, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg,
@@ -194,7 +195,7 @@ fn bonding() {
             SubMsg {
                 id: 0,
                 msg: CosmosMsg::Stargate {
-                    type_url: "/osmosis.tokenfactory.v1beta1.MsgMint".to_string(),
+                    type_url: OsmosisTypeURLs::Mint.to_string(),
                     value: msg_bin
                 },
                 gas_limit: None,
@@ -248,7 +249,7 @@ fn bonding() {
         SubMsg {
             id: 0,
             msg: CosmosMsg::Stargate {
-                type_url: "/osmosis.tokenfactory.v1beta1.MsgMint".to_string(),
+                type_url: OsmosisTypeURLs::Mint.to_string(),
                 value: msg_bin
             },
             gas_limit: None,
@@ -682,7 +683,7 @@ fn submitting_batch() {
         SubMsg {
             id: 0,
             msg: CosmosMsg::Stargate {
-                type_url: "/osmosis.tokenfactory.v1beta1.MsgBurn".to_string(),
+                type_url: OsmosisTypeURLs::Burn.to_string(),
                 value: Binary::from(
                     MsgMint {
                         amount: Some(ProtoCoin {

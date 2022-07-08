@@ -253,7 +253,7 @@ pub fn bond<T: SteakToken>(
         REPLY_REGISTER_RECEIVED_COINS,
     );
 
-    let mint_msg = steak_token.mint_msg(&env.contract.address, receiver.to_string())?;
+    let mint_msgs = steak_token.mint_msgs(&env.contract.address, receiver.to_string())?;
 
     let event = Event::new("steakhub/bonded")
         .add_attribute("time", env.block.time.seconds().to_string())
@@ -264,7 +264,7 @@ pub fn bond<T: SteakToken>(
 
     Ok(Response::new()
         .add_submessage(delegate_submsg)
-        .add_message(mint_msg)
+        .add_messages(mint_msgs)
         .add_event(event)
         .add_attribute("action", "steakhub/bond"))
 }
