@@ -1,9 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::{
-    hub::{Batch, PendingBatch, UnbondRequest},
-    vault_token::Token,
-};
+use crate::hub::{Batch, PendingBatch, UnbondRequest};
 use cosmwasm_std::{Addr, Coin, Decimal, StdError, Storage, Uint128};
 use cw_asset::{
     cw20_asset::Cw20Asset, osmosis::OsmosisCoin, Asset, AssetInfo, Burn, Instantiate, Mint,

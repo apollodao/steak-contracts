@@ -14,7 +14,6 @@ use crate::hub::{
     UnbondRequest,
 };
 use crate::queries;
-use crate::vault_token::{reply_save_token, TokenInstantiator, REPLY_REGISTER_RECEIVED_COINS};
 
 use crate::error::SteakContractError;
 use crate::helpers::{parse_received_fund, query_delegation, query_delegations, unwrap_reply};
@@ -136,6 +135,8 @@ fn callback<T: SteakToken>(
         CallbackMsg::Reinvest {} => reinvest::<T>(deps, env),
     }
 }
+
+pub const REPLY_REGISTER_RECEIVED_COINS: u64 = 1;
 
 pub fn reply<T: Instantiate<AssetInfo>>(
     deps: DepsMut,
