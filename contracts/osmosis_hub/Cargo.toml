@@ -18,9 +18,9 @@ cw-storage-plus = "0.13"
 cw20 = "0.13.2"
 steak = {path = "../../packages/steak"}
 thiserror = {version = "1.0.31"}
-cw-asset = {rev = "98679b247f45bb0d2e529e0ca35da84dc86ee55f", git = "https://github.com/apollodao/cw-asset.git"}
+cw-asset = {rev = "8f6f3af5e28e9018e55fc891753d8bf68aa75590", git = "https://github.com/apollodao/cw-asset.git"}
 
 [dev-dependencies]
-apollo-proto-rust = {branch = "master", git = "https://github.com/apollodao/apollo-proto-rust.git"}
+apollo-proto-rust = {rev = "0810057108927c3932836ee1f2c5403e997b37e3", git = "https://github.com/apollodao/apollo-proto-rust.git"}
 prost = "0.10"
 serde = {version = "1.0.103", default-features = false, features = ["derive"]}
