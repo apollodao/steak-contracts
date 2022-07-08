@@ -19,4 +19,4 @@ prost = "0.10"
 schemars = "0.8.1"
 serde = {version = "1.0.103", default-features = false, features = ["derive"]}
 thiserror = {version = "1.0.31"}
-cw-asset = {rev = "5f2fd3d15c18995e5ec0fdbc1456469a69edd4a4", git = "https://github.com/apollodao/cw-asset.git"}
+cw-asset = {rev = "98679b247f45bb0d2e529e0ca35da84dc86ee55f", git = "https://github.com/apollodao/cw-asset.git"}
