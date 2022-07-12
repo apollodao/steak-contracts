@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 
 use crate::hub::{Batch, PendingBatch, UnbondRequest};
 use cosmwasm_std::{Addr, Coin, Decimal, StdError, Storage, Uint128};
+use cw_asset::IsNative;
 use cw_asset::{
     cw20_asset::Cw20Asset, osmosis::OsmosisCoin, Asset, AssetInfo, Burn, Mint, Transferable,
 };
@@ -11,7 +12,10 @@ use crate::error::SteakContractError;
 
 use crate::types::BooleanKey;
 
-pub trait SteakToken: Transferable + Mint + Burn + TryFrom<Asset, Error = StdError> {}
+pub trait SteakToken:
+    Transferable + Mint + Burn + IsNative + TryFrom<Asset, Error = StdError>
+{
+}
 
 impl SteakToken for OsmosisCoin {}
 

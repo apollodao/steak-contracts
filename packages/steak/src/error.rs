@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, OverflowError, StdError};
+use cosmwasm_std::{Coin, OverflowError, StdError, Uint128};
 use cw_asset::CwAssetError;
 use thiserror::Error;
 
@@ -52,6 +52,14 @@ pub enum SteakContractError {
     /// Invalid Coin Sent Error
     #[error("Only the steak denom can be sent")]
     InvalidCoinSent {},
+
+    #[error("Wrong amount sent. Expected {expected}, got {actual}")]
+    WrongAmount {
+        /// Expected amount
+        expected: Uint128,
+        /// Actual amount
+        actual: Uint128,
+    },
 
     /// No Coins Sent Error
     #[error("No coins sent")]

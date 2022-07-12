@@ -5,6 +5,7 @@ use cw_asset::osmosis::{OsmosisCoin, OsmosisDenomInstantiator};
 use steak::error::SteakContractError;
 use steak::execute;
 use steak::hub::{ExecuteMsg, MigrateMsg, QueryMsg};
+use steak::state::SteakToken;
 
 pub type InstantiateMsg = steak::hub::InstantiateMsg<OsmosisDenomInstantiator>;
 

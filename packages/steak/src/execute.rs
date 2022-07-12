@@ -105,7 +105,7 @@ pub fn execute<T: SteakToken>(
         ExecuteMsg::Rebalance {} => rebalance(deps, env),
         ExecuteMsg::Reconcile {} => reconcile(deps, env),
         ExecuteMsg::SubmitBatch {} => submit_batch::<T>(deps, env),
-        ExecuteMsg::QueueUnbond { receiver, amount } => queue_unbond(
+        ExecuteMsg::QueueUnbond { receiver, amount } => queue_unbond::<T>(
             deps,
             env,
             info.clone(),
@@ -402,7 +402,7 @@ fn parse_coin_receiving_event(env: &Env, event: &Event) -> StdResult<Coins> {
 // Unbonding logics
 //--------------------------------------------------------------------------------------------------
 
-pub fn queue_unbond(
+pub fn queue_unbond<T: SteakToken>(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -422,17 +422,19 @@ pub fn queue_unbond(
     // transfer_from_msg is not implemented and will return Err. In that case
     // parse the received funds to assert
     let mut msgs: Vec<CosmosMsg> = vec![];
-    match steak_token.transfer_from_msg(info.sender, env.contract.address.clone()) {
-        Ok(transfer_from_msg) => msgs.push(transfer_from_msg),
-        Err(_) => {
-            let steak_coin: Coin = steak_token.try_into()?;
-            let amount = parse_received_fund(&info.funds, &steak_coin.denom)?;
-            if amount != usteak_to_burn {
-                return Err(SteakContractError::Std(StdError::generic_err(
-                    "received wrong amount of steak token",
-                )));
-            }
+    if T::is_native() {
+        let steak_coin: Coin = steak_token.try_into()?;
+        let amount = parse_received_fund(&info.funds, &steak_coin.denom)?;
+        if amount != usteak_to_burn {
+            return Err(SteakContractError::WrongAmount {
+                expected: usteak_to_burn,
+                actual: amount,
+            });
         }
+    } else {
+        let transfer_from_msg =
+            steak_token.transfer_from_msg(info.sender, env.contract.address.clone())?;
+        msgs.push(transfer_from_msg);
     }
 
     let mut pending_batch = state.pending_batch.load(deps.storage)?;

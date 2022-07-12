@@ -19,4 +19,4 @@ prost = "0.10"
 schemars = "0.8.1"
 serde = {version = "1.0.103", default-features = false, features = ["derive"]}
 thiserror = {version = "1.0.31"}
-cw-asset = {rev = "ce189ed8bb0201a85ef58e7bb070c1417d706d55", git = "https://github.com/apollodao/cw-asset.git"}
+cw-asset = {branch = "dev/tokenideas", git = "https://github.com/apollodao/cw-asset.git"}
