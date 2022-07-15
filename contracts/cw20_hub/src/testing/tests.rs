@@ -3,18 +3,15 @@ use apollo_proto_rust::{
     OsmosisTypeURLs,
 };
 use cosmwasm_std::{
-    coin, coins, to_binary, Addr, Attribute, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg,
-    Event, Order, OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse,
-    SubMsgResult, Uint128, WasmMsg,
+    coin, coins, from_binary, to_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg,
+    Decimal, DistributionMsg, Event, Order, OwnedDeps, Reply, ReplyOn, StakingMsg, StdError,
+    SubMsg, SubMsgResponse, SubMsgResult, Uint128, WasmMsg,
 };
-use cw20::MinterResponse;
+use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw_asset::cw20_asset::Cw20AssetInstantiator;
 use prost::Message;
 
-use cosmwasm_std::{
-    testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR},
-    Binary,
-};
+use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use std::{str::FromStr, vec};
 
 use crate::contract::{execute, instantiate, reply};
@@ -170,16 +167,6 @@ fn bonding() {
         SubMsg::reply_on_success(Delegation::new("alice", 1000000).to_cosmos_msg(), 1)
     );
 
-    let msg = MsgMint {
-        amount: Some(ProtoCoin {
-            denom: DENOM.to_string(),
-            amount: 1000000.to_string(),
-        }),
-        sender: MOCK_CONTRACT_ADDR.to_string(),
-    };
-
-    let msg_bin = Binary::from(msg.encode_to_vec());
-
     assert_eq!(
         res.messages,
         vec![
@@ -194,13 +181,18 @@ fn bonding() {
             },
             SubMsg {
                 id: 0,
-                msg: CosmosMsg::Stargate {
-                    type_url: OsmosisTypeURLs::Mint.to_string(),
-                    value: msg_bin
-                },
+                msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: DENOM.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::Mint {
+                        recipient: "user_1".to_string(),
+                        amount: Uint128::new(1000000)
+                    })
+                    .unwrap(),
+                    funds: vec![]
+                }),
                 gas_limit: None,
                 reply_on: ReplyOn::Never,
-            }
+            },
         ]
     );
 
@@ -234,27 +226,22 @@ fn bonding() {
         SubMsg::reply_on_success(Delegation::new("charlie", 12345).to_cosmos_msg(), 1)
     );
 
-    let msg = MsgMint {
-        amount: Some(ProtoCoin {
-            denom: DENOM.to_string(),
-            amount: 12043.to_string(),
-        }),
-        sender: MOCK_CONTRACT_ADDR.to_string(),
-    };
-
-    let msg_bin = Binary::from(msg.encode_to_vec());
-
     assert_eq!(
         res.messages[1],
         SubMsg {
             id: 0,
-            msg: CosmosMsg::Stargate {
-                type_url: OsmosisTypeURLs::Mint.to_string(),
-                value: msg_bin
-            },
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: DENOM.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::Mint {
+                    recipient: "user_3".to_string(),
+                    amount: Uint128::new(12043)
+                })
+                .unwrap(),
+                funds: vec![]
+            }),
             gas_limit: None,
-            reply_on: ReplyOn::Never
-        }
+            reply_on: ReplyOn::Never,
+        },
     );
 
     // Check the state after bonding
@@ -461,42 +448,87 @@ fn queuing_unbond() {
 
     // Only Steak token is accepted for unbonding requests
     // TODO: Should unwrap(). Since it is a cw20 should return a transferfrom msg.
-    let mut err = execute(
+
+    // Only Steak token is accepted for unbonding requests
+    let res = execute(
         deps.as_mut(),
         mock_env(),
         mock_info("hacker", &[]),
         ExecuteMsg::QueueUnbond {
-            amount: Uint128::from(1u128),
+            amount: Uint128::new(69420),
             receiver: None,
         },
     )
-    .unwrap_err();
+    .unwrap();
 
     assert_eq!(
-        err,
-        SteakContractError::Std(StdError::generic_err(
-            "must deposit exactly one coin; received 0"
-        ))
+        res.messages,
+        vec![
+            SubMsg {
+                id: 0,
+                msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: DENOM.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::Burn {
+                        amount: Uint128::new(69420)
+                    })
+                    .unwrap(),
+                    funds: vec![]
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Never
+            },
+            SubMsg {
+                id: 0,
+                msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: MOCK_CONTRACT_ADDR.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::Burn {
+                        amount: Uint128::new(1)
+                    })
+                    .unwrap(),
+                    funds: vec![]
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Never
+            }
+        ]
     );
+
+    // let mut err = execute(
+    //     deps.as_mut(),
+    //     mock_env(),
+    //     mock_info("hacker", &[]),
+    //     ExecuteMsg::QueueUnbond {
+    //         amount: Uint128::from(1u128),
+    //         receiver: None,
+    //     },
+    // )
+    // .unwrap_err();
+
+    // assert_eq!(
+    //     err,
+    //     SteakContractError::Std(StdError::generic_err(
+    //         "must deposit exactly one coin; received 0"
+    //     ))
+    // );
 
     // TODO: Do we need this. Same test as above?
-    err = execute(
-        deps.as_mut(),
-        mock_env_at_timestamp(12345), // est_unbond_start_time = 269200
-        mock_info("user_1", &[coin(1000u128, "random")]),
-        ExecuteMsg::QueueUnbond {
-            receiver: None,
-            amount: Uint128::from(1u128),
-        },
-    )
-    .unwrap_err();
+    // let err = execute(
+    //     deps.as_mut(),
+    //     mock_env_at_timestamp(12345), // est_unbond_start_time = 269200
+    //     mock_info("user_1", &[coin(1000u128, "random")]),
+    //     ExecuteMsg::QueueUnbond {
+    //         receiver: None,
+    //         amount: Uint128::from(1u128),
+    //     },
+    // )
+    // .unwrap_err();
 
-    assert_eq!(
-        err,
-        SteakContractError::Std(StdError::generic_err(
-            "expected factory/cosmos2contract/apOSMO deposit, received random"
-        ))
-    );
+    // assert_eq!(
+    //     err,
+    //     SteakContractError::Std(StdError::generic_err(
+    //         "expected factory/cosmos2contract/apOSMO deposit, received random"
+    //     ))
+    // );
 
     // User 1 creates an unbonding request before `est_unbond_start_time` is reached. The unbond
     // request is saved, but not the pending batch is not submitted for unbonding
@@ -511,7 +543,17 @@ fn queuing_unbond() {
     )
     .unwrap();
 
-    assert_eq!(res.messages.len(), 0);
+    assert_eq!(
+        res.messages,
+        vec![SubMsg {
+            id: 0,
+            msg: todo!(),
+            gas_limit: todo!(),
+            reply_on: todo!()
+        }]
+    );
+
+    assert_eq!(res.messages.len(), 1);
 
     // User 3 creates an unbonding request after `est_unbond_start_time` is reached. The unbond
     // request is saved, and the pending is automatically submitted for unbonding
@@ -682,19 +724,14 @@ fn submitting_batch() {
         res.messages[3],
         SubMsg {
             id: 0,
-            msg: CosmosMsg::Stargate {
-                type_url: OsmosisTypeURLs::Burn.to_string(),
-                value: Binary::from(
-                    MsgMint {
-                        amount: Some(ProtoCoin {
-                            denom: DENOM.to_string(),
-                            amount: 1000000.to_string(),
-                        }),
-                        sender: MOCK_CONTRACT_ADDR.to_string(),
-                    }
-                    .encode_to_vec()
-                )
-            },
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: DENOM.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::Burn {
+                    amount: Uint128::new(92876)
+                })
+                .unwrap(),
+                funds: vec![]
+            }),
             gas_limit: None,
             reply_on: ReplyOn::Never
         }

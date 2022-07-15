@@ -2,14 +2,17 @@ use std::convert::TryInto;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coins, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
+    coins, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
     DistributionMsg, Env, Event, MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg,
     Uint128, WasmMsg,
 };
+use cw20::Cw20ReceiveMsg;
+use cw_asset::cw20_asset::Cw20Asset;
 use cw_asset::{AssetInfo, CwAssetError, Instantiate, Transferable};
 
 use crate::hub::{
-    Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, UnbondRequest,
+    Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, ReceiveMsg,
+    UnbondRequest,
 };
 use crate::queries;
 
@@ -432,6 +435,7 @@ pub fn queue_unbond<T: SteakToken>(
             });
         }
     } else {
+        //We may have to increase allowance before this, won't know until testnet integration
         let transfer_from_msg =
             steak_token.transfer_from_msg(info.sender, env.contract.address.clone())?;
         msgs.push(transfer_from_msg);

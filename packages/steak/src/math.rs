@@ -18,8 +18,6 @@ pub fn compute_mint_amount(
     uosmo_to_bond: Uint128,
     current_delegations: &[Delegation],
 ) -> Uint128 {
-    println!("usteak_supply {}", usteak_supply);
-    println!("uosmo_to_bond {}", uosmo_to_bond);
     let uosmo_bonded: u128 = current_delegations.iter().map(|d| d.amount).sum();
     if uosmo_bonded == 0 {
         uosmo_to_bond
