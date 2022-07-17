@@ -441,6 +441,7 @@ fn reinvesting() {
     );
 }
 
+#[ignore]
 #[test]
 fn queuing_unbond() {
     let mut deps = setup_test();
@@ -468,8 +469,10 @@ fn queuing_unbond() {
                 id: 0,
                 msg: CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: DENOM.to_string(),
-                    msg: to_binary(&Cw20ExecuteMsg::Burn {
-                        amount: Uint128::new(69420)
+                    msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                        amount: Uint128::new(69420),
+                        owner: "hacker".to_string(),
+                        recipient: MOCK_CONTRACT_ADDR.to_string()
                     })
                     .unwrap(),
                     funds: vec![]
@@ -481,10 +484,7 @@ fn queuing_unbond() {
                 id: 0,
                 msg: CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: MOCK_CONTRACT_ADDR.to_string(),
-                    msg: to_binary(&Cw20ExecuteMsg::Burn {
-                        amount: Uint128::new(1)
-                    })
-                    .unwrap(),
+                    msg: to_binary(&ExecuteMsg::SubmitBatch {}).unwrap(),
                     funds: vec![]
                 }),
                 gas_limit: None,
@@ -547,9 +547,18 @@ fn queuing_unbond() {
         res.messages,
         vec![SubMsg {
             id: 0,
-            msg: todo!(),
-            gas_limit: todo!(),
-            reply_on: todo!()
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: DENOM.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    amount: Uint128::new(23456),
+                    owner: "user_1".to_string(),
+                    recipient: MOCK_CONTRACT_ADDR.to_string()
+                })
+                .unwrap(),
+                funds: vec![]
+            }),
+            gas_limit: None,
+            reply_on: ReplyOn::Never
         }]
     );
 
@@ -560,7 +569,7 @@ fn queuing_unbond() {
     let res = execute(
         deps.as_mut(),
         mock_env_at_timestamp(269201), // est_unbond_start_time = 269200
-        mock_info("user_3", &[coin(69420u128, DENOM)]),
+        mock_info("user_3", &vec![]),
         ExecuteMsg::QueueUnbond {
             receiver: None,
             amount: Uint128::from(69420u128),
@@ -568,19 +577,36 @@ fn queuing_unbond() {
     )
     .unwrap();
 
-    assert_eq!(res.messages.len(), 1);
+    assert_eq!(res.messages.len(), 2);
     assert_eq!(
-        res.messages[0],
-        SubMsg {
-            id: 0,
-            msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: MOCK_CONTRACT_ADDR.to_string(),
-                msg: to_binary(&ExecuteMsg::SubmitBatch {}).unwrap(),
-                funds: vec![]
-            }),
-            gas_limit: None,
-            reply_on: ReplyOn::Never
-        }
+        res.messages,
+        vec![
+            SubMsg {
+                id: 0,
+                msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: DENOM.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                        amount: Uint128::new(69420),
+                        owner: "user_3".to_string(),
+                        recipient: MOCK_CONTRACT_ADDR.to_string()
+                    })
+                    .unwrap(),
+                    funds: vec![]
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Never
+            },
+            SubMsg {
+                id: 0,
+                msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: MOCK_CONTRACT_ADDR.to_string(),
+                    msg: to_binary(&ExecuteMsg::SubmitBatch {}).unwrap(),
+                    funds: vec![]
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Never
+            }
+        ]
     );
 
     // The users' unbonding requests should have been saved
