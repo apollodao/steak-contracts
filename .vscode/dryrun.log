@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/georgemcaskill/Documents/GitHub/steak-contracts'
+mv artifacts/osmosis_steak_hub-aarch64.wasm artifacts/osmosis_steak_hub.wasm && \
+	mv artifacts/cw20_steak_hub-aarch64.wasm artifacts/cw20_steak_hub.wasm
+make: Leaving directory `/Users/georgemcaskill/Documents/GitHub/steak-contracts'
+ 
