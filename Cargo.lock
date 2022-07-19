@@ -201,7 +201,7 @@ dependencies = [
 [[package]]
 name = "cw-asset"
 version = "2.1.0"
-source = "git+https://github.com/apollodao/cw-asset.git?branch=dev/tokenideas#271723c4b1a84773a9f7503a02183b2c98220c69"
+source = "git+https://github.com/apollodao/cw-asset.git?branch=dev/tokenideas#4066f85ee1ae65428b05ae66004f900af752764f"
 dependencies = [
  "apollo-proto-rust",
  "cosmwasm-std",

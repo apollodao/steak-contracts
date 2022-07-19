@@ -29,7 +29,7 @@ use steak::math::{
 use steak::state::State;
 use steak::types::{Coins, Delegation, Redelegation, Undelegation};
 
-use cw_asset::osmosis::{OsmosisCoin, OsmosisDenomInstantiator, REPLY_SAVE_OSMOSIS_DENOM};
+use cw_asset::osmosis::{OsmosisDenom, OsmosisDenomInstantiator, REPLY_SAVE_OSMOSIS_DENOM};
 
 use super::custom_querier::CustomQuerier;
 use super::helpers::{mock_dependencies, mock_env_at_timestamp, query_helper};
@@ -42,7 +42,11 @@ const DENOM: &str = "factory/cosmos2contract/apOSMO";
 fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
     let mut deps = mock_dependencies();
 
-    let token_instantiator: OsmosisDenomInstantiator = DENOM.to_string();
+    let token_instantiator = OsmosisDenomInstantiator {
+        denom: DENOM.to_string(),
+        sender: MOCK_CONTRACT_ADDR.to_string(),
+    };
+
     let _res = instantiate(
         deps.as_mut(),
         mock_env_at_timestamp(10000),
@@ -135,7 +139,7 @@ fn proper_instantiation() {
 #[test]
 fn bonding() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     // Bond when no delegation has been made
     // In this case, the full deposit simply goes to the first validator
@@ -279,7 +283,7 @@ fn bonding() {
 fn harvesting() {
     let mut deps = setup_test();
 
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
     // Assume users have bonded a total of 1,000,000 uosmo and minted the same amount of usteak
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 341667),
@@ -345,7 +349,7 @@ fn harvesting() {
 #[test]
 fn registering_unlocked_coins() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     // After withdrawing staking rewards, we parse the `coin_received` event to find the received amounts
     let event = Event::new("coin_received")
@@ -384,7 +388,7 @@ fn registering_unlocked_coins() {
 #[test]
 fn reinvesting() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 333334),
@@ -452,7 +456,7 @@ fn reinvesting() {
 #[test]
 fn queuing_unbond() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     // Only Steak token is accepted for unbonding requests
     let mut err = execute(
@@ -582,7 +586,7 @@ fn queuing_unbond() {
 #[test]
 fn submitting_batch() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     // uosmo bonded: 1,037,345
     // usteak supply: 1,012,043
@@ -724,7 +728,7 @@ fn submitting_batch() {
 #[test]
 fn reconciling() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     let previous_batches = vec![
         Batch {
@@ -859,7 +863,7 @@ fn reconciling() {
 #[test]
 fn withdrawing_unbonded() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     // We simulate a most general case:
     // - batches 1 and 2 have finished unbonding
@@ -1117,7 +1121,7 @@ fn withdrawing_unbonded() {
 #[test]
 fn adding_validator() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     let err = execute(
         deps.as_mut(),
@@ -1173,7 +1177,7 @@ fn adding_validator() {
 #[test]
 fn removing_validator() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 341667),
@@ -1247,7 +1251,7 @@ fn removing_validator() {
 #[test]
 fn transferring_ownership() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     let err = execute(
         deps.as_mut(),
@@ -1339,7 +1343,7 @@ fn querying_previous_batches() {
         },
     ];
 
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
     for batch in &batches {
         state
             .previous_batches
@@ -1418,7 +1422,7 @@ fn querying_previous_batches() {
 #[test]
 fn querying_unbond_requests() {
     let mut deps = mock_dependencies();
-    let state = State::default();
+    let state = State::<OsmosisDenom>::default();
 
     let unbond_requests = vec![
         UnbondRequest {
