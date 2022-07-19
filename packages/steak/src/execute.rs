@@ -2,17 +2,14 @@ use std::convert::TryInto;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coins, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
+    coins, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
     DistributionMsg, Env, Event, MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg,
     Uint128, WasmMsg,
 };
-use cw20::Cw20ReceiveMsg;
-use cw_asset::cw20_asset::Cw20Asset;
-use cw_asset::{AssetInfo, CwAssetError, Instantiate, Transferable};
+use cw_asset::{AssetInfo, CwAssetError, Instantiate};
 
 use crate::hub::{
-    Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, ReceiveMsg,
-    UnbondRequest,
+    Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, UnbondRequest,
 };
 use crate::queries;
 
@@ -256,7 +253,7 @@ pub fn bond<T: SteakToken>(
         REPLY_REGISTER_RECEIVED_COINS,
     );
 
-    let mint_msgs = steak_token.mint_msgs(&env.contract.address, receiver.to_string())?;
+    let mint_response = steak_token.mint(&env.contract.address, receiver.to_string())?;
 
     let event = Event::new("steakhub/bonded")
         .add_attribute("time", env.block.time.seconds().to_string())
@@ -265,9 +262,8 @@ pub fn bond<T: SteakToken>(
         .add_attribute("uosmo_bonded", denom_to_bond)
         .add_attribute("usteak_minted", usteak_to_mint);
 
-    Ok(Response::new()
+    Ok(mint_response
         .add_submessage(delegate_submsg)
-        .add_messages(mint_msgs)
         .add_event(event)
         .add_attribute("action", "steakhub/bond"))
 }
@@ -548,7 +544,7 @@ pub fn submit_batch<T: SteakToken>(
         .to_asset(pending_batch.usteak_to_burn)
         .try_into()?;
 
-    let burn_msg = steak_token.burn_msg(&env.contract.address)?;
+    let burn_response = steak_token.burn(&env.contract.address)?;
 
     state
         .total_usteak_supply
@@ -563,9 +559,8 @@ pub fn submit_batch<T: SteakToken>(
         .add_attribute("uosmo_unbonded", uosmo_to_unbond)
         .add_attribute("usteak_burned", pending_batch.usteak_to_burn);
 
-    Ok(Response::new()
+    Ok(burn_response
         .add_submessages(undelegate_submsgs)
-        .add_message(burn_msg)
         .add_event(event)
         .add_attribute("action", "steakhub/unbond"))
 }
