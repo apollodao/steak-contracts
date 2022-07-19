@@ -2,13 +2,15 @@ use apollo_proto_rust::{
     cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1::MsgMint,
     OsmosisTypeURLs,
 };
+use cw_asset::cw20_asset::Cw20;
+
 use cosmwasm_std::{
     coin, coins, from_binary, to_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg,
     Decimal, DistributionMsg, Event, Order, OwnedDeps, Reply, ReplyOn, StakingMsg, StdError,
     SubMsg, SubMsgResponse, SubMsgResult, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
-use cw_asset::cw20_asset::Cw20AssetInstantiator;
+use cw_asset::cw20_asset::Cw20Instantiator;
 use prost::Message;
 
 use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
@@ -59,7 +61,7 @@ fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
             ],
             performance_fee: 5,
             distribution_contract: "distribution_contract".to_string(),
-            token_instantiator: Cw20AssetInstantiator {
+            token_instantiator: Cw20Instantiator {
                 label: "Apollo apOsmo token".to_string(),
                 admin: Some(MOCK_CONTRACT_ADDR.to_string()),
                 code_id: 1337u64,
@@ -111,7 +113,7 @@ fn proper_instantiation() {
         ConfigResponse {
             owner: "apollo".to_string(),
             new_owner: None,
-            steak_token: format!("cw20:{}", DENOM),
+            steak_token: DENOM.to_string(),
             epoch_period: 259200,
             unbond_period: 1814400,
             validators: vec![
@@ -149,7 +151,7 @@ fn proper_instantiation() {
 #[test]
 fn bonding() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     // Bond when no delegation has been made
     // In this case, the full deposit simply goes to the first validator
@@ -164,21 +166,25 @@ fn bonding() {
     assert_eq!(res.messages.len(), 2);
     assert_eq!(
         res.messages[0],
-        SubMsg::reply_on_success(Delegation::new("alice", 1000000).to_cosmos_msg(), 1)
+        SubMsg {
+            id: 0,
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: DENOM.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::Mint {
+                    recipient: "user_1".to_string(),
+                    amount: Uint128::new(1000000)
+                })
+                .unwrap(),
+                funds: vec![]
+            }),
+            gas_limit: None,
+            reply_on: ReplyOn::Never,
+        },
     );
 
     assert_eq!(
         res.messages,
         vec![
-            SubMsg {
-                id: 1,
-                msg: CosmosMsg::Staking(StakingMsg::Delegate {
-                    validator: "alice".to_string(),
-                    amount: coin(1000000u128, "uosmo")
-                }),
-                gas_limit: None,
-                reply_on: ReplyOn::Success,
-            },
             SubMsg {
                 id: 0,
                 msg: CosmosMsg::Wasm(WasmMsg::Execute {
@@ -192,6 +198,15 @@ fn bonding() {
                 }),
                 gas_limit: None,
                 reply_on: ReplyOn::Never,
+            },
+            SubMsg {
+                id: 1,
+                msg: CosmosMsg::Staking(StakingMsg::Delegate {
+                    validator: "alice".to_string(),
+                    amount: coin(1000000u128, "uosmo")
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Success,
             },
         ]
     );
@@ -223,11 +238,6 @@ fn bonding() {
     assert_eq!(res.messages.len(), 2);
     assert_eq!(
         res.messages[0],
-        SubMsg::reply_on_success(Delegation::new("charlie", 12345).to_cosmos_msg(), 1)
-    );
-
-    assert_eq!(
-        res.messages[1],
         SubMsg {
             id: 0,
             msg: CosmosMsg::Wasm(WasmMsg::Execute {
@@ -242,6 +252,10 @@ fn bonding() {
             gas_limit: None,
             reply_on: ReplyOn::Never,
         },
+    );
+    assert_eq!(
+        res.messages[1],
+        SubMsg::reply_on_success(Delegation::new("charlie", 12345).to_cosmos_msg(), 1)
     );
 
     // Check the state after bonding
@@ -271,7 +285,7 @@ fn bonding() {
 fn harvesting() {
     let mut deps = setup_test();
 
-    let state = State::default();
+    let state = State::<Cw20>::default();
     // Assume users have bonded a total of 1,000,000 uosmo and minted the same amount of usteak
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 341667),
@@ -337,7 +351,7 @@ fn harvesting() {
 #[test]
 fn registering_unlocked_coins() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     // After withdrawing staking rewards, we parse the `coin_received` event to find the received amounts
     let event = Event::new("coin_received")
@@ -376,7 +390,7 @@ fn registering_unlocked_coins() {
 #[test]
 fn reinvesting() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 333334),
@@ -444,7 +458,7 @@ fn reinvesting() {
 #[test]
 fn queuing_unbond() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     // Only Steak token is accepted for unbonding requests
     // TODO: Should unwrap(). Since it is a cw20 should return a transferfrom msg.
@@ -656,7 +670,7 @@ fn queuing_unbond() {
 #[test]
 fn submitting_batch() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     // uosmo bonded: 1,037,345
     // usteak supply: 1,012,043
@@ -732,21 +746,9 @@ fn submitting_batch() {
     .unwrap();
 
     assert_eq!(res.messages.len(), 4);
-    assert_eq!(
-        res.messages[0],
-        SubMsg::reply_on_success(Undelegation::new("alice", 31732).to_cosmos_msg(), 1)
-    );
-    assert_eq!(
-        res.messages[1],
-        SubMsg::reply_on_success(Undelegation::new("bob", 31733).to_cosmos_msg(), 1)
-    );
-    assert_eq!(
-        res.messages[2],
-        SubMsg::reply_on_success(Undelegation::new("charlie", 31732).to_cosmos_msg(), 1)
-    );
 
     assert_eq!(
-        res.messages[3],
+        res.messages[0],
         SubMsg {
             id: 0,
             msg: CosmosMsg::Wasm(WasmMsg::Execute {
@@ -760,6 +762,19 @@ fn submitting_batch() {
             gas_limit: None,
             reply_on: ReplyOn::Never
         }
+    );
+
+    assert_eq!(
+        res.messages[1],
+        SubMsg::reply_on_success(Undelegation::new("alice", 31732).to_cosmos_msg(), 1)
+    );
+    assert_eq!(
+        res.messages[2],
+        SubMsg::reply_on_success(Undelegation::new("bob", 31733).to_cosmos_msg(), 1)
+    );
+    assert_eq!(
+        res.messages[3],
+        SubMsg::reply_on_success(Undelegation::new("charlie", 31732).to_cosmos_msg(), 1)
     );
 
     // A new pending batch should have been created
@@ -793,7 +808,7 @@ fn submitting_batch() {
 #[test]
 fn reconciling() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     let previous_batches = vec![
         Batch {
@@ -928,7 +943,7 @@ fn reconciling() {
 #[test]
 fn withdrawing_unbonded() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     // We simulate a most general case:
     // - batches 1 and 2 have finished unbonding
@@ -1186,7 +1201,7 @@ fn withdrawing_unbonded() {
 #[test]
 fn adding_validator() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     let err = execute(
         deps.as_mut(),
@@ -1242,7 +1257,7 @@ fn adding_validator() {
 #[test]
 fn removing_validator() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 341667),
@@ -1316,7 +1331,7 @@ fn removing_validator() {
 #[test]
 fn transferring_ownership() {
     let mut deps = setup_test();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     let err = execute(
         deps.as_mut(),
@@ -1408,7 +1423,7 @@ fn querying_previous_batches() {
         },
     ];
 
-    let state = State::default();
+    let state = State::<Cw20>::default();
     for batch in &batches {
         state
             .previous_batches
@@ -1487,7 +1502,7 @@ fn querying_previous_batches() {
 #[test]
 fn querying_unbond_requests() {
     let mut deps = mock_dependencies();
-    let state = State::default();
+    let state = State::<Cw20>::default();
 
     let unbond_requests = vec![
         UnbondRequest {

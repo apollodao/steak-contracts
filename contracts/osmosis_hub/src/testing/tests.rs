@@ -101,7 +101,7 @@ fn proper_instantiation() {
         ConfigResponse {
             owner: "apollo".to_string(),
             new_owner: None,
-            steak_token: format!("native:{}", DENOM),
+            steak_token: DENOM.to_string(),
             epoch_period: 259200,
             unbond_period: 1814400,
             validators: vec![
@@ -153,7 +153,7 @@ fn bonding() {
 
     assert_eq!(res.messages.len(), 3);
     assert_eq!(
-        res.messages[0],
+        res.messages[2],
         SubMsg::reply_on_success(Delegation::new("alice", 1000000).to_cosmos_msg(), 1)
     );
 
@@ -170,15 +170,6 @@ fn bonding() {
     assert_eq!(
         res.messages,
         vec![
-            SubMsg {
-                id: 1,
-                msg: CosmosMsg::Staking(StakingMsg::Delegate {
-                    validator: "alice".to_string(),
-                    amount: coin(1000000u128, "uosmo")
-                }),
-                gas_limit: None,
-                reply_on: ReplyOn::Success,
-            },
             SubMsg {
                 id: 0,
                 msg: CosmosMsg::Stargate {
@@ -199,7 +190,16 @@ fn bonding() {
                 }),
                 gas_limit: None,
                 reply_on: ReplyOn::Never,
-            }
+            },
+            SubMsg {
+                id: 1,
+                msg: CosmosMsg::Staking(StakingMsg::Delegate {
+                    validator: "alice".to_string(),
+                    amount: coin(1000000u128, "uosmo")
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Success,
+            },
         ]
     );
 
@@ -229,7 +229,7 @@ fn bonding() {
 
     assert_eq!(res.messages.len(), 3);
     assert_eq!(
-        res.messages[0],
+        res.messages[2],
         SubMsg::reply_on_success(Delegation::new("charlie", 12345).to_cosmos_msg(), 1)
     );
 
@@ -244,7 +244,7 @@ fn bonding() {
     let msg_bin = Binary::from(msg.encode_to_vec());
 
     assert_eq!(
-        res.messages[1],
+        res.messages[0],
         SubMsg {
             id: 0,
             msg: CosmosMsg::Stargate {
@@ -664,19 +664,6 @@ fn submitting_batch() {
     assert_eq!(res.messages.len(), 4);
     assert_eq!(
         res.messages[0],
-        SubMsg::reply_on_success(Undelegation::new("alice", 31732).to_cosmos_msg(), 1)
-    );
-    assert_eq!(
-        res.messages[1],
-        SubMsg::reply_on_success(Undelegation::new("bob", 31733).to_cosmos_msg(), 1)
-    );
-    assert_eq!(
-        res.messages[2],
-        SubMsg::reply_on_success(Undelegation::new("charlie", 31732).to_cosmos_msg(), 1)
-    );
-
-    assert_eq!(
-        res.messages[3],
         SubMsg {
             id: 0,
             msg: CosmosMsg::Stargate {
@@ -695,6 +682,18 @@ fn submitting_batch() {
             gas_limit: None,
             reply_on: ReplyOn::Never
         }
+    );
+    assert_eq!(
+        res.messages[1],
+        SubMsg::reply_on_success(Undelegation::new("alice", 31732).to_cosmos_msg(), 1)
+    );
+    assert_eq!(
+        res.messages[2],
+        SubMsg::reply_on_success(Undelegation::new("bob", 31733).to_cosmos_msg(), 1)
+    );
+    assert_eq!(
+        res.messages[3],
+        SubMsg::reply_on_success(Undelegation::new("charlie", 31732).to_cosmos_msg(), 1)
     );
 
     // A new pending batch should have been created
