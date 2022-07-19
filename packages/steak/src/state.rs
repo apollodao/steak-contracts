@@ -1,28 +1,34 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
+use std::fmt::Display;
 
 use crate::hub::{Batch, PendingBatch, UnbondRequest};
 use cosmwasm_std::{Addr, Coin, Decimal, StdError, Storage, Uint128};
-use cw_asset::{cw20_asset::Cw20Asset, osmosis::OsmosisCoin, Asset, AssetInfo, Burn, Mint};
+use cw_asset::{cw20_asset::Cw20, osmosis::OsmosisDenom, Asset, AssetInfo, Burn, Mint};
 use cw_asset::{IsNative, Transfer};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 use crate::error::SteakContractError;
 
 use crate::types::BooleanKey;
 
-pub trait SteakToken: Transfer + Mint + Burn + IsNative + TryFrom<Asset, Error = StdError> {}
+pub trait SteakToken:
+    Transfer + Mint + Burn + IsNative + Serialize + DeserializeOwned + Display
+{
+}
 
-impl SteakToken for OsmosisCoin {}
+impl SteakToken for OsmosisDenom {}
 
-impl SteakToken for Cw20Asset {}
+impl SteakToken for Cw20 {}
 
-pub struct State<'a> {
+pub struct State<'a, T: SteakToken> {
     /// Account who can call certain privileged functions
     pub owner: Item<'a, Addr>,
     /// Pending ownership transfer, awaiting acceptance by the new owner
     pub new_owner: Item<'a, Addr>,
     /// Denom of the Steak coin
-    pub steak_token: Item<'a, AssetInfo>,
+    pub steak_token: Item<'a, T>,
     /// How often the unbonding queue is to be executed
     pub epoch_period: Item<'a, u64>,
     /// The staking module's unbonding time, in seconds
@@ -47,7 +53,10 @@ pub struct State<'a> {
 
 pub(crate) const STEAK_TOKEN_KEY: &str = "steak_token";
 
-impl Default for State<'static> {
+impl<T> Default for State<'static, T>
+where
+    T: SteakToken,
+{
     fn default() -> Self {
         let pb_indexes = PreviousBatchesIndexes {
             reconciled: MultiIndex::new(
@@ -81,7 +90,10 @@ impl Default for State<'static> {
     }
 }
 
-impl<'a> State<'a> {
+impl<'a, T> State<'a, T>
+where
+    T: SteakToken,
+{
     pub fn assert_owner(
         &self,
         storage: &dyn Storage,

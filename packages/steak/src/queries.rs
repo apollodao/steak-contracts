@@ -1,5 +1,9 @@
+use std::fmt::Display;
+
 use cosmwasm_std::{Addr, Decimal, Deps, Env, Order, StdResult, Uint128};
 use cw_storage_plus::{Bound, CwIntKey};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 use crate::hub::{
     Batch, ConfigResponse, PendingBatch, StateResponse, UnbondRequestsByBatchResponseItem,
@@ -7,13 +11,13 @@ use crate::hub::{
 };
 
 use crate::helpers::query_delegations;
-use crate::state::State;
+use crate::state::{State, SteakToken};
 
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
 
-pub fn config(deps: Deps) -> StdResult<ConfigResponse> {
-    let state = State::default();
+pub fn config<T: SteakToken>(deps: Deps) -> StdResult<ConfigResponse> {
+    let state = State::<T>::default();
     Ok(ConfigResponse {
         owner: state.owner.load(deps.storage)?.into(),
         new_owner: state
@@ -29,8 +33,8 @@ pub fn config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
-pub fn state(deps: Deps, env: Env) -> StdResult<StateResponse> {
-    let state = State::default();
+pub fn state<T: SteakToken>(deps: Deps, env: Env) -> StdResult<StateResponse> {
+    let state = State::<T>::default();
 
     let total_usteak = state.total_usteak_supply.load(deps.storage)?;
 
@@ -52,22 +56,22 @@ pub fn state(deps: Deps, env: Env) -> StdResult<StateResponse> {
     })
 }
 
-pub fn pending_batch(deps: Deps) -> StdResult<PendingBatch> {
-    let state = State::default();
+pub fn pending_batch<T: SteakToken>(deps: Deps) -> StdResult<PendingBatch> {
+    let state = State::<T>::default();
     state.pending_batch.load(deps.storage)
 }
 
-pub fn previous_batch(deps: Deps, id: u64) -> StdResult<Batch> {
-    let state = State::default();
+pub fn previous_batch<T: SteakToken>(deps: Deps, id: u64) -> StdResult<Batch> {
+    let state = State::<T>::default();
     state.previous_batches.load(deps.storage, id)
 }
 
-pub fn previous_batches(
+pub fn previous_batches<T: SteakToken>(
     deps: Deps,
     start_after: Option<u64>,
     limit: Option<u32>,
 ) -> StdResult<Vec<Batch>> {
-    let state = State::default();
+    let state = State::<T>::default();
 
     let start = start_after.map(Bound::exclusive);
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
@@ -83,13 +87,13 @@ pub fn previous_batches(
         .collect()
 }
 
-pub fn unbond_requests_by_batch(
+pub fn unbond_requests_by_batch<T: SteakToken>(
     deps: Deps,
     id: u64,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<Vec<UnbondRequestsByBatchResponseItem>> {
-    let state = State::default();
+    let state = State::<T>::default();
 
     let addr: Addr;
     let start = match start_after {
@@ -113,13 +117,13 @@ pub fn unbond_requests_by_batch(
         .collect()
 }
 
-pub fn unbond_requests_by_user(
+pub fn unbond_requests_by_user<T: SteakToken>(
     deps: Deps,
     user: String,
     start_after: Option<u64>,
     limit: Option<u32>,
 ) -> StdResult<Vec<UnbondRequestsByUserResponseItem>> {
-    let state = State::default();
+    let state = State::<T>::default();
 
     let start = start_after.map(|id| {
         let mut key = vec![0u8, 8u8]; // when `u64` are used as keys, they are prefixed with the length, which is [0, 8]
