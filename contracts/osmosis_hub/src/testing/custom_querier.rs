@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use cosmwasm_std::testing::{BankQuerier, StakingQuerier, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, Addr, Coin, Empty, FullDelegation, Querier, QuerierResult,
-    QueryRequest, SystemError, WasmQuery,
+    from_slice, Addr, Coin, Empty, FullDelegation, Querier, QuerierResult, QueryRequest,
+    SystemError, WasmQuery,
 };
 use steak::types::Delegation;
 

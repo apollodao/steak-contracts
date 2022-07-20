@@ -52,7 +52,7 @@ impl CustomQuerier {
         };
     }
 
-    pub fn set_cw20_total_supply(&mut self, token: &str, total_supply: u128) {
+    pub fn _set_cw20_total_supply(&mut self, token: &str, total_supply: u128) {
         self.cw20_querier
             .total_supplies
             .insert(token.to_string(), total_supply);

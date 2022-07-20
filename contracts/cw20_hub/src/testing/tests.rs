@@ -1,17 +1,12 @@
-use apollo_proto_rust::{
-    cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1::MsgMint,
-    OsmosisTypeURLs,
-};
 use cw_asset::cw20_asset::Cw20;
 
 use cosmwasm_std::{
-    coin, coins, from_binary, to_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg,
-    Decimal, DistributionMsg, Event, Order, OwnedDeps, Reply, ReplyOn, StakingMsg, StdError,
-    SubMsg, SubMsgResponse, SubMsgResult, Uint128, WasmMsg,
+    coin, coins, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg, Event, Order,
+    OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse, SubMsgResult, Uint128,
+    WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw_asset::cw20_asset::Cw20Instantiator;
-use prost::Message;
 
 use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use std::{str::FromStr, vec};
@@ -1726,7 +1721,8 @@ fn parsing_coin() {
 
 #[test]
 fn parsing_coins() {
-    let coins = Coins::from_str("").unwrap();
+    // TODO: should we remove this or fix the test?
+    let _coins = Coins::from_str("").unwrap();
     // assert_eq!(coins.0, vec![]);
 
     let coins = Coins::from_str("12345uatom").unwrap();

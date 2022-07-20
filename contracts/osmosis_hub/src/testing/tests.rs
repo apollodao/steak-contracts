@@ -1,6 +1,6 @@
 use apollo_proto_rust::{
     cosmos::base::v1beta1::Coin as ProtoCoin,
-    osmosis::tokenfactory::v1beta1::{MsgBurn, MsgCreateDenom, MsgMint},
+    osmosis::tokenfactory::v1beta1::{MsgBurn, MsgMint},
 };
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg, Event, Order,
@@ -669,7 +669,7 @@ fn submitting_batch() {
             msg: CosmosMsg::Stargate {
                 type_url: "/osmosis.tokenfactory.v1beta1.MsgBurn".to_string(),
                 value: Binary::from(
-                    MsgMint {
+                    MsgBurn {
                         amount: Some(ProtoCoin {
                             denom: DENOM.to_string(),
                             amount: 92876.to_string(),
@@ -1645,7 +1645,8 @@ fn parsing_coin() {
 
 #[test]
 fn parsing_coins() {
-    let coins = Coins::from_str("").unwrap();
+    // TODO: should we remove this or fix the test?
+    let _coins = Coins::from_str("").unwrap();
     //assert_eq!(coins.0, vec![]);
 
     let coins = Coins::from_str("12345uatom").unwrap();
