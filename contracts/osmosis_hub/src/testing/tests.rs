@@ -1645,9 +1645,8 @@ fn parsing_coin() {
 
 #[test]
 fn parsing_coins() {
-    // TODO: should we remove this or fix the test?
-    let _coins = Coins::from_str("").unwrap();
-    //assert_eq!(coins.0, vec![]);
+    let coins = Coins::from_str("").unwrap();
+    assert_eq!(coins.0.len(), 0);
 
     let coins = Coins::from_str("12345uatom").unwrap();
     assert_eq!(coins.0, vec![Coin::new(12345, "uatom")]);
