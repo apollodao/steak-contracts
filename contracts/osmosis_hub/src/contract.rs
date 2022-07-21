@@ -1,7 +1,7 @@
 use cosmwasm_std::{
     entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
 };
-use cw_asset::osmosis::{OsmosisDenom, OsmosisDenomInstantiator};
+use cw_token::implementations::osmosis::{OsmosisDenom, OsmosisDenomInstantiator};
 use steak::error::SteakContractError;
 use steak::execute;
 use steak::hub::{ExecuteMsg, MigrateMsg, QueryMsg};

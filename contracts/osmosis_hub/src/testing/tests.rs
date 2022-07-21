@@ -29,7 +29,9 @@ use steak::math::{
 use steak::state::State;
 use steak::types::{Coins, Delegation, Redelegation, Undelegation};
 
-use cw_asset::osmosis::{OsmosisDenom, OsmosisDenomInstantiator, REPLY_SAVE_OSMOSIS_DENOM};
+use cw_token::implementations::osmosis::{
+    OsmosisDenom, OsmosisDenomInstantiator, REPLY_SAVE_OSMOSIS_DENOM,
+};
 
 use super::custom_querier::CustomQuerier;
 use super::helpers::{mock_dependencies, mock_env_at_timestamp, query_helper};

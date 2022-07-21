@@ -1,7 +1,7 @@
 use cosmwasm_std::{
     entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
 };
-use cw_asset::cw20_asset::{Cw20, Cw20Instantiator};
+use cw_token::implementations::cw20::{Cw20, Cw20Instantiator};
 use steak::error::SteakContractError;
 use steak::execute;
 use steak::hub::{ExecuteMsg, MigrateMsg, QueryMsg};

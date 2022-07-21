@@ -1,5 +1,5 @@
 use cosmwasm_std::{Coin, OverflowError, StdError, Uint128};
-use cw_asset::CwAssetError;
+use cw_token::CwTokenError;
 use thiserror::Error;
 
 /// ## Description
@@ -10,9 +10,10 @@ pub enum SteakContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    /// CwAssetError
+    /// CwTokenError
+    ///
     #[error("{0}")]
-    CwAsset(#[from] CwAssetError),
+    CwAsset(#[from] CwTokenError),
 
     /// Unauthorized Error
     #[error("Unauthorized")]

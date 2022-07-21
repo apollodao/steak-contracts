@@ -1,14 +1,12 @@
-use cw_asset::cw20_asset::Cw20;
-
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg, Event, Order,
     OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse, SubMsgResult, Uint128,
     WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
-use cw_asset::cw20_asset::Cw20Instantiator;
 
 use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
+use cw_token::implementations::cw20::{Cw20, Cw20Instantiator, REPLY_SAVE_CW20_ADDRESS};
 use std::{str::FromStr, vec};
 
 use crate::contract::{execute, instantiate, reply};
@@ -24,8 +22,6 @@ use steak::math::{
 };
 use steak::state::State;
 use steak::types::{Coins, Delegation, Redelegation, Undelegation};
-
-use cw_asset::cw20_asset::REPLY_SAVE_CW20_ADDRESS;
 
 use super::custom_querier::CustomQuerier;
 use super::helpers::{mock_dependencies, mock_env_at_timestamp, query_helper};

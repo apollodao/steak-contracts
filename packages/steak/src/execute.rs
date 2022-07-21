@@ -5,7 +5,7 @@ use cosmwasm_std::{
     DistributionMsg, Env, Event, MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg,
     Uint128, WasmMsg,
 };
-use cw_asset::{CwAssetError, Instantiate};
+use cw_token::{CwTokenError, Instantiate};
 
 use crate::hub::{
     Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, UnbondRequest,
@@ -61,7 +61,7 @@ pub fn instantiate<S: SteakToken, T: Instantiate<S>>(
         .performance_fee
         .save(deps.storage, &Decimal::percent(msg.performance_fee))?;
 
-    let init_token_msg = msg.token_instantiator.instantiate_msg(deps)?;
+    let init_token_msg = msg.token_instantiator.instantiate_msg()?;
 
     Ok(Response::new().add_submessage(init_token_msg))
 }
@@ -145,7 +145,7 @@ pub fn reply<S: SteakToken, T: Instantiate<S>>(
     if let Err(err) = r {
         match err {
             // continue to default reply id match arm if error is InvalidReplyId
-            CwAssetError::InvalidReplyId {} => match reply.id {
+            CwTokenError::InvalidReplyId {} => match reply.id {
                 REPLY_REGISTER_RECEIVED_COINS => {
                     register_received_coins::<S>(deps, env, unwrap_reply(&reply)?.events)
                 }
