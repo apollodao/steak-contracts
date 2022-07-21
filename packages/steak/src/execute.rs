@@ -6,6 +6,7 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20::Cw20ReceiveMsg;
+use cw_storage_plus::Item;
 use cw_token::{CwTokenError, Instantiate};
 
 use crate::hub::{
@@ -32,7 +33,7 @@ pub fn instantiate<S: SteakToken, T: Instantiate<S>>(
     env: Env,
     msg: InstantiateMsg<T>,
 ) -> Result<Response, SteakContractError> {
-    let state = State::<S>::default();
+    let state = State::default();
 
     state
         .owner
@@ -86,7 +87,7 @@ pub fn execute<T: SteakToken>(
                 .unwrap_or(info.sender),
             parse_received_fund(&info.funds, "uosmo")?,
         ),
-        ExecuteMsg::WithdrawUnbonded { receiver } => withdraw_unbonded::<T>(
+        ExecuteMsg::WithdrawUnbonded { receiver } => withdraw_unbonded(
             deps,
             env,
             info.sender.clone(),
@@ -95,25 +96,25 @@ pub fn execute<T: SteakToken>(
                 .transpose()?
                 .unwrap_or_else(|| info.sender.clone()),
         ),
-        ExecuteMsg::AddValidator { validator } => add_validator::<T>(deps, info.sender, validator),
+        ExecuteMsg::AddValidator { validator } => add_validator(deps, info.sender, validator),
         ExecuteMsg::RemoveValidator { validator } => {
-            remove_validator::<T>(deps, env, info.sender, validator)
+            remove_validator(deps, env, info.sender, validator)
         }
         ExecuteMsg::TransferOwnership { new_owner } => {
-            transfer_ownership::<T>(deps, info.sender, new_owner)
+            transfer_ownership(deps, info.sender, new_owner)
         }
-        ExecuteMsg::AcceptOwnership {} => accept_ownership::<T>(deps, info.sender),
+        ExecuteMsg::AcceptOwnership {} => accept_ownership(deps, info.sender),
         ExecuteMsg::Harvest {} => harvest(deps, env),
-        ExecuteMsg::Rebalance {} => rebalance::<T>(deps, env),
-        ExecuteMsg::Reconcile {} => reconcile::<T>(deps, env),
+        ExecuteMsg::Rebalance {} => rebalance(deps, env),
+        ExecuteMsg::Reconcile {} => reconcile(deps, env),
         ExecuteMsg::SubmitBatch {} => submit_batch::<T>(deps, env),
         ExecuteMsg::QueueUnbond { receiver } => {
-            let steak_token = State::<T>::default().steak_token.load(deps.storage)?;
+            let steak_token = T::load(deps.storage)?;
             if !T::is_native() {
                 return Err(SteakContractError::IncorrectQueueUnbondMessage {});
             }
             let amount = parse_received_fund(&info.funds, &steak_token.to_string())?;
-            queue_unbond::<T>(
+            queue_unbond(
                 deps,
                 env,
                 receiver
@@ -123,11 +124,11 @@ pub fn execute<T: SteakToken>(
                 amount,
             )
         }
-        ExecuteMsg::Callback(callback_msg) => callback::<T>(deps, env, info, callback_msg),
+        ExecuteMsg::Callback(callback_msg) => callback(deps, env, info, callback_msg),
     }
 }
 
-fn callback<T: SteakToken>(
+fn callback(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -138,7 +139,7 @@ fn callback<T: SteakToken>(
     }
 
     match callback_msg {
-        CallbackMsg::Reinvest {} => reinvest::<T>(deps, env),
+        CallbackMsg::Reinvest {} => reinvest(deps, env),
     }
 }
 
@@ -149,8 +150,7 @@ pub fn reply<S: SteakToken, T: Instantiate<S>>(
     env: Env,
     reply: Reply,
 ) -> Result<Response, SteakContractError> {
-    let state = State::default();
-    let r = T::save_asset(deps.storage, deps.api, &reply, state.steak_token);
+    let r = T::save_asset(deps.storage, deps.api, &reply, S::get_item());
     if let Err(err) = r {
         match err {
             // continue to default reply id match arm if error is InvalidReplyId
@@ -170,17 +170,17 @@ pub fn reply<S: SteakToken, T: Instantiate<S>>(
 pub fn query<T: SteakToken>(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&queries::config::<T>(deps)?),
-        QueryMsg::State {} => to_binary(&queries::state::<T>(deps, env)?),
-        QueryMsg::PendingBatch {} => to_binary(&queries::pending_batch::<T>(deps)?),
-        QueryMsg::PreviousBatch(id) => to_binary(&queries::previous_batch::<T>(deps, id)?),
+        QueryMsg::State {} => to_binary(&queries::state(deps, env)?),
+        QueryMsg::PendingBatch {} => to_binary(&queries::pending_batch(deps)?),
+        QueryMsg::PreviousBatch(id) => to_binary(&queries::previous_batch(deps, id)?),
         QueryMsg::PreviousBatches { start_after, limit } => {
-            to_binary(&queries::previous_batches::<T>(deps, start_after, limit)?)
+            to_binary(&queries::previous_batches(deps, start_after, limit)?)
         }
         QueryMsg::UnbondRequestsByBatch {
             id,
             start_after,
             limit,
-        } => to_binary(&queries::unbond_requests_by_batch::<T>(
+        } => to_binary(&queries::unbond_requests_by_batch(
             deps,
             id,
             start_after,
@@ -190,7 +190,7 @@ pub fn query<T: SteakToken>(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Bi
             user,
             start_after,
             limit,
-        } => to_binary(&queries::unbond_requests_by_user::<T>(
+        } => to_binary(&queries::unbond_requests_by_user(
             deps,
             user,
             start_after,
@@ -208,7 +208,7 @@ pub fn receive_cw20<T: SteakToken>(
     info: MessageInfo,
     cw20_msg: Cw20ReceiveMsg,
 ) -> Result<Response, SteakContractError> {
-    let steak_token = State::<T>::default().steak_token.load(deps.storage)?;
+    let steak_token = T::load(deps.storage)?;
 
     // Only accept cw20 messages from the steak token contract
     if info.sender != steak_token.to_string() {
@@ -220,7 +220,7 @@ pub fn receive_cw20<T: SteakToken>(
             let receiver = deps
                 .api
                 .addr_validate(&receiver.unwrap_or_else(|| cw20_msg.sender.clone()))?;
-            queue_unbond::<T>(deps, env, receiver, cw20_msg.amount)
+            queue_unbond(deps, env, receiver, cw20_msg.amount)
         }
     }
 }
@@ -243,9 +243,7 @@ pub fn bond<T: SteakToken>(
     receiver: Addr,
     denom_to_bond: Uint128,
 ) -> Result<Response, SteakContractError> {
-    // catman error
-
-    let state = State::<T>::default();
+    let state = State::default();
     let validators = state.validators.load(deps.storage)?;
 
     // Query the current delegations made to validators, and find the validator with the smallest
@@ -265,7 +263,7 @@ pub fn bond<T: SteakToken>(
     let usteak_supply = state.total_usteak_supply.load(deps.storage)?;
     let usteak_to_mint = compute_mint_amount(usteak_supply, denom_to_bond, &delegations);
 
-    let steak_token = state.steak_token.load(deps.storage)?;
+    let steak_token = T::load(deps.storage)?;
 
     state
         .total_usteak_supply
@@ -328,8 +326,8 @@ pub fn harvest(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> 
 /// execution.
 /// 2. Same as with `bond`, in the latest implementation we only delegate staking rewards with the
 /// validator that has the smallest delegation amount.
-pub fn reinvest<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+pub fn reinvest(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
+    let state = State::default();
     let validators = state.validators.load(deps.storage)?;
     let mut unlocked_coins = state.unlocked_coins.load(deps.storage)?;
 
@@ -392,7 +390,7 @@ pub fn register_received_coins<T: SteakToken>(
         received_coins.add_many(&parse_coin_receiving_event(&env, event)?)?;
     }
 
-    let state = State::<T>::default();
+    let state = State::default();
     state
         .unlocked_coins
         .update(deps.storage, |coins| -> StdResult<_> {
@@ -432,13 +430,13 @@ fn parse_coin_receiving_event(env: &Env, event: &Event) -> StdResult<Coins> {
 // Unbonding logics
 //--------------------------------------------------------------------------------------------------
 
-pub fn queue_unbond<T: SteakToken>(
+pub fn queue_unbond(
     deps: DepsMut,
     env: Env,
     receiver: Addr,
     usteak_to_burn: Uint128,
 ) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+    let state = State::default();
 
     let mut pending_batch = state.pending_batch.load(deps.storage)?;
     pending_batch.usteak_to_burn += usteak_to_burn;
@@ -484,7 +482,7 @@ pub fn submit_batch<T: SteakToken>(
     deps: DepsMut,
     env: Env,
 ) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+    let state = State::default();
     let validators = state.validators.load(deps.storage)?;
     let unbond_period = state.unbond_period.load(deps.storage)?;
     let pending_batch = state.pending_batch.load(deps.storage)?;
@@ -539,7 +537,7 @@ pub fn submit_batch<T: SteakToken>(
         .map(|d| SubMsg::reply_on_success(d.to_cosmos_msg(), REPLY_REGISTER_RECEIVED_COINS))
         .collect::<Vec<_>>();
 
-    let steak_token = state.steak_token.load(deps.storage)?;
+    let steak_token = T::load(deps.storage)?;
 
     let burn_response = steak_token.burn(&env.contract.address, pending_batch.usteak_to_burn)?;
 
@@ -562,8 +560,8 @@ pub fn submit_batch<T: SteakToken>(
         .add_attribute("action", "steakhub/unbond"))
 }
 
-pub fn reconcile<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+pub fn reconcile(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
+    let state = State::default();
     let current_time = env.block.time.seconds();
 
     // Load batches that have not been reconciled
@@ -621,13 +619,13 @@ pub fn reconcile<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, Ste
         .add_attribute("action", "steakhub/reconcile"))
 }
 
-pub fn withdraw_unbonded<T: SteakToken>(
+pub fn withdraw_unbonded(
     deps: DepsMut,
     env: Env,
     user: Addr,
     receiver: Addr,
 ) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+    let state = State::default();
     let current_time = env.block.time.seconds();
 
     // NOTE: If the user has too many unclaimed requests, this may not fit in the WASM memory...
@@ -708,8 +706,8 @@ pub fn withdraw_unbonded<T: SteakToken>(
 // Ownership and management logics
 //--------------------------------------------------------------------------------------------------
 
-pub fn rebalance<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+pub fn rebalance(deps: DepsMut, env: Env) -> Result<Response, SteakContractError> {
+    let state = State::default();
     let validators = state.validators.load(deps.storage)?;
 
     let delegations = query_delegations(&deps.querier, &validators, &env.contract.address)?;
@@ -731,12 +729,12 @@ pub fn rebalance<T: SteakToken>(deps: DepsMut, env: Env) -> Result<Response, Ste
         .add_attribute("action", "steakhub/rebalance"))
 }
 
-pub fn add_validator<T: SteakToken>(
+pub fn add_validator(
     deps: DepsMut,
     sender: Addr,
     validator: String,
 ) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+    let state = State::default();
 
     state.assert_owner(deps.storage, &sender)?;
 
@@ -755,13 +753,13 @@ pub fn add_validator<T: SteakToken>(
         .add_attribute("action", "steakhub/add_validator"))
 }
 
-pub fn remove_validator<T: SteakToken>(
+pub fn remove_validator(
     deps: DepsMut,
     env: Env,
     sender: Addr,
     validator: String,
 ) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+    let state = State::default();
 
     state.assert_owner(deps.storage, &sender)?;
 
@@ -792,12 +790,12 @@ pub fn remove_validator<T: SteakToken>(
         .add_attribute("action", "steakhub/remove_validator"))
 }
 
-pub fn transfer_ownership<T: SteakToken>(
+pub fn transfer_ownership(
     deps: DepsMut,
     sender: Addr,
     new_owner: String,
 ) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+    let state = State::default();
 
     state.assert_owner(deps.storage, &sender)?;
     state
@@ -807,11 +805,8 @@ pub fn transfer_ownership<T: SteakToken>(
     Ok(Response::new().add_attribute("action", "steakhub/transfer_ownership"))
 }
 
-pub fn accept_ownership<T: SteakToken>(
-    deps: DepsMut,
-    sender: Addr,
-) -> Result<Response, SteakContractError> {
-    let state = State::<T>::default();
+pub fn accept_ownership(deps: DepsMut, sender: Addr) -> Result<Response, SteakContractError> {
+    let state = State::default();
 
     let previous_owner = state.owner.load(deps.storage)?;
     let new_owner = state.new_owner.load(deps.storage)?;

@@ -240,6 +240,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-token"
+version = "0.1.0"
+source = "git+https://github.com/apollodao/cw-token.git?branch=master#fcbf1a885076b46c28f010971b5c8ef79ceb53e0"
+dependencies = [
+ "apollo-proto-rust",
+ "cosmwasm-std",
+ "cw-asset",
+ "cw-storage-plus",
+ "cw20",
+ "cw20-base",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "cw-utils"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -310,7 +326,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-storage-plus",
- "cw-token",
+ "cw-token 0.1.0 (git+https://github.com/apollodao/cw-token.git?tag=v0.1.0)",
  "cw20",
  "cw20-base",
  "prost",
@@ -517,7 +533,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-storage-plus",
- "cw-token",
+ "cw-token 0.1.0 (git+https://github.com/apollodao/cw-token.git?branch=master)",
  "cw20",
  "prost",
  "serde",
@@ -758,7 +774,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-storage-plus",
- "cw-token",
+ "cw-token 0.1.0 (git+https://github.com/apollodao/cw-token.git?branch=master)",
  "cw20",
  "cw20-base",
  "prost",

@@ -1,10 +1,11 @@
+use std::convert::TryFrom;
 use std::fmt::Display;
 
 use crate::hub::{Batch, PendingBatch, UnbondRequest};
 use cosmwasm_std::{Addr, Coin, Decimal, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 use cw_token::implementations::{cw20::Cw20, osmosis::OsmosisDenom};
-use cw_token::{Burn, IsNative, Mint, Transfer};
+use cw_token::{Burn, Mint, Token};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -12,22 +13,33 @@ use crate::error::SteakContractError;
 
 use crate::types::BooleanKey;
 
-pub trait SteakToken:
-    Transfer + Mint + Burn + IsNative + Serialize + DeserializeOwned + Display
-{
-}
+pub trait SteakToken: Token + Mint + Burn + ItemStorage {}
 
+impl ItemStorage for OsmosisDenom {}
 impl SteakToken for OsmosisDenom {}
 
+impl ItemStorage for Cw20 {}
 impl SteakToken for Cw20 {}
 
-pub struct State<'a, T: SteakToken> {
+pub trait ItemStorage: Serialize + DeserializeOwned + Sized {
+    fn load(storage: &mut dyn Storage) -> Result<Self, SteakContractError> {
+        Ok(Self::get_item().load(storage)?)
+    }
+
+    fn save(&self, storage: &mut dyn Storage) -> Result<(), SteakContractError> {
+        Ok(Self::get_item().save(storage, self)?)
+    }
+
+    fn get_item<'a>() -> Item<'a, Self> {
+        Item::<Self>::new(STEAK_TOKEN_KEY)
+    }
+}
+
+pub struct State<'a> {
     /// Account who can call certain privileged functions
     pub owner: Item<'a, Addr>,
     /// Pending ownership transfer, awaiting acceptance by the new owner
     pub new_owner: Item<'a, Addr>,
-    /// Denom of the Steak coin
-    pub steak_token: Item<'a, T>,
     /// How often the unbonding queue is to be executed
     pub epoch_period: Item<'a, u64>,
     /// The staking module's unbonding time, in seconds
@@ -52,10 +64,7 @@ pub struct State<'a, T: SteakToken> {
 
 pub(crate) const STEAK_TOKEN_KEY: &str = "steak_token";
 
-impl<T> Default for State<'static, T>
-where
-    T: SteakToken,
-{
+impl Default for State<'static> {
     fn default() -> Self {
         let pb_indexes = PreviousBatchesIndexes {
             reconciled: MultiIndex::new(
@@ -74,7 +83,6 @@ where
         Self {
             owner: Item::new("owner"),
             new_owner: Item::new("new_owner"),
-            steak_token: Item::new(STEAK_TOKEN_KEY),
             epoch_period: Item::new("epoch_period"),
             unbond_period: Item::new("unbond_period"),
             validators: Item::new("validators"),
@@ -89,10 +97,7 @@ where
     }
 }
 
-impl<'a, T> State<'a, T>
-where
-    T: SteakToken,
-{
+impl<'a> State<'a> {
     pub fn assert_owner(
         &self,
         storage: &dyn Storage,
