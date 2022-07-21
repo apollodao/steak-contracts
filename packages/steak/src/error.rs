@@ -67,7 +67,7 @@ pub enum SteakContractError {
     NoCoinsSent {},
 
     /// Incorrect Queue Unbond Message Error
-    #[error("Use the native token implemenation of `queue_unbond`")]
+    #[error("Use of incorrect queue unbond message.")]
     IncorrectQueueUnbondMessage {},
 
     /// Invalid Callback Sender Error

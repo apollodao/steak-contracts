@@ -1,14 +1,16 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coins, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
+    coins, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
     DistributionMsg, Env, Event, MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg,
     Uint128, WasmMsg,
 };
+use cw20::Cw20ReceiveMsg;
 use cw_token::{CwTokenError, Instantiate};
 
 use crate::hub::{
-    Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, UnbondRequest,
+    Batch, CallbackMsg, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg, ReceiveMsg,
+    UnbondRequest,
 };
 use crate::queries;
 
@@ -74,6 +76,7 @@ pub fn execute<T: SteakToken>(
 ) -> Result<Response, SteakContractError> {
     let api = deps.api;
     match msg {
+        ExecuteMsg::Receive(cw20_msg) => receive_cw20::<T>(deps, env, info, cw20_msg),
         ExecuteMsg::Bond { receiver } => bond::<T>(
             deps,
             env,
@@ -104,16 +107,22 @@ pub fn execute<T: SteakToken>(
         ExecuteMsg::Rebalance {} => rebalance::<T>(deps, env),
         ExecuteMsg::Reconcile {} => reconcile::<T>(deps, env),
         ExecuteMsg::SubmitBatch {} => submit_batch::<T>(deps, env),
-        ExecuteMsg::QueueUnbond { receiver, amount } => queue_unbond::<T>(
-            deps,
-            env,
-            info.clone(),
-            receiver
-                .map(|s| api.addr_validate(&s))
-                .transpose()?
-                .unwrap_or_else(|| info.sender.clone()),
-            amount,
-        ),
+        ExecuteMsg::QueueUnbond { receiver } => {
+            let steak_token = State::<T>::default().steak_token.load(deps.storage)?;
+            if !T::is_native() {
+                return Err(SteakContractError::IncorrectQueueUnbondMessage {});
+            }
+            let amount = parse_received_fund(&info.funds, &steak_token.to_string())?;
+            queue_unbond::<T>(
+                deps,
+                env,
+                receiver
+                    .map(|s| api.addr_validate(&s))
+                    .transpose()?
+                    .unwrap_or_else(|| info.sender.clone()),
+                amount,
+            )
+        }
         ExecuteMsg::Callback(callback_msg) => callback::<T>(deps, env, info, callback_msg),
     }
 }
@@ -187,6 +196,32 @@ pub fn query<T: SteakToken>(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Bi
             start_after,
             limit,
         )?),
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Cw20 recieve logic
+//--------------------------------------------------------------------------------------------------
+pub fn receive_cw20<T: SteakToken>(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    cw20_msg: Cw20ReceiveMsg,
+) -> Result<Response, SteakContractError> {
+    let steak_token = State::<T>::default().steak_token.load(deps.storage)?;
+
+    // Only accept cw20 messages from the steak token contract
+    if info.sender != steak_token.to_string() {
+        return Err(SteakContractError::InvalidCoinSent {});
+    }
+
+    match from_binary(&cw20_msg.msg)? {
+        ReceiveMsg::QueueUnbond { receiver } => {
+            let receiver = deps
+                .api
+                .addr_validate(&receiver.unwrap_or_else(|| cw20_msg.sender.clone()))?;
+            queue_unbond::<T>(deps, env, receiver, cw20_msg.amount)
+        }
     }
 }
 
@@ -400,31 +435,10 @@ fn parse_coin_receiving_event(env: &Env, event: &Event) -> StdResult<Coins> {
 pub fn queue_unbond<T: SteakToken>(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
     receiver: Addr,
     usteak_to_burn: Uint128,
 ) -> Result<Response, SteakContractError> {
     let state = State::<T>::default();
-
-    let steak_token = state.steak_token.load(deps.storage)?;
-
-    let res = if T::is_native() {
-        let steak_coin = Coin {
-            denom: steak_token.to_string(),
-            amount: usteak_to_burn,
-        };
-        let amount = parse_received_fund(&info.funds, &steak_coin.denom)?;
-        if amount != usteak_to_burn {
-            return Err(SteakContractError::WrongAmount {
-                expected: usteak_to_burn,
-                actual: amount,
-            });
-        }
-        Response::new()
-    } else {
-        //We may have to increase allowance before this, won't know until testnet integration
-        steak_token.transfer_from(info.sender, env.contract.address.clone(), usteak_to_burn)?
-    };
 
     let mut pending_batch = state.pending_batch.load(deps.storage)?;
     pending_batch.usteak_to_burn += usteak_to_burn;
@@ -460,7 +474,7 @@ pub fn queue_unbond<T: SteakToken>(
         .add_attribute("receiver", receiver)
         .add_attribute("usteak_to_burn", usteak_to_burn);
 
-    Ok(res
+    Ok(Response::new()
         .add_messages(msgs)
         .add_event(event)
         .add_attribute("action", "steakhub/queue_unbond"))
