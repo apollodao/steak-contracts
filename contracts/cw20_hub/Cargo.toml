@@ -15,7 +15,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 [dependencies]
 cosmwasm-std = {version = "1.0", features = ["staking"]}
 cw-asset = "2.0.0"
-cw-token = { tag = "v0.1.0", git = "https://github.com/apollodao/cw-token.git" }
+cw-token = { tag = "v0.1.1", git = "https://github.com/apollodao/cw-token.git" }
 cw-storage-plus = "0.13"
 cw20 = "0.13.2"
 cw20-base = "0.13.2"

@@ -226,23 +226,7 @@ dependencies = [
 [[package]]
 name = "cw-token"
 version = "0.1.0"
-source = "git+https://github.com/apollodao/cw-token.git?tag=v0.1.0#70b6bd9ade96cd85b766c16ccba13fff4d8f92d5"
-dependencies = [
- "apollo-proto-rust",
- "cosmwasm-std",
- "cw-asset",
- "cw-storage-plus",
- "cw20",
- "cw20-base",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "cw-token"
-version = "0.1.0"
-source = "git+https://github.com/apollodao/cw-token.git?branch=master#fcbf1a885076b46c28f010971b5c8ef79ceb53e0"
+source = "git+https://github.com/apollodao/cw-token.git?tag=v0.1.1#f7e8ec9db305c9335b60b4dc2bdd28d16b3fd001"
 dependencies = [
  "apollo-proto-rust",
  "cosmwasm-std",
@@ -326,7 +310,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-storage-plus",
- "cw-token 0.1.0 (git+https://github.com/apollodao/cw-token.git?tag=v0.1.0)",
+ "cw-token",
  "cw20",
  "cw20-base",
  "prost",
@@ -533,7 +517,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-storage-plus",
- "cw-token 0.1.0 (git+https://github.com/apollodao/cw-token.git?branch=master)",
+ "cw-token",
  "cw20",
  "prost",
  "serde",
@@ -774,7 +758,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-storage-plus",
- "cw-token 0.1.0 (git+https://github.com/apollodao/cw-token.git?branch=master)",
+ "cw-token",
  "cw20",
  "cw20-base",
  "prost",
