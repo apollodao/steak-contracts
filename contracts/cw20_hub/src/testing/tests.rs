@@ -1717,7 +1717,6 @@ fn parsing_coin() {
 
 #[test]
 fn parsing_coins() {
-    // TODO: should we remove this or fix the test?
     let coins = Coins::from_str("").unwrap();
     assert_eq!(coins.0.len(), 0);
 
