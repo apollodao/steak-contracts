@@ -24,7 +24,7 @@ dependencies = [
 [[package]]
 name = "apollo-proto-rust"
 version = "0.1.0"
-source = "git+https://github.com/apollodao/apollo-proto-rust.git?rev=7ff193c00fb63357d686c859eac89b40667050b5#7ff193c00fb63357d686c859eac89b40667050b5"
+source = "git+https://github.com/apollodao/apollo-proto-rust.git?tag=v0.1.0#935e15f94e2e0f3484572aeed650d6905784057d"
 dependencies = [
  "cosmwasm-std",
  "prost",
@@ -226,7 +226,7 @@ dependencies = [
 [[package]]
 name = "cw-token"
 version = "0.1.0"
-source = "git+https://github.com/apollodao/cw-token.git?branch=master#d6c72e8b055e12da9412260a37e4cd5c69dc5a93"
+source = "git+https://github.com/apollodao/cw-token.git?tag=v0.1.0#70b6bd9ade96cd85b766c16ccba13fff4d8f92d5"
 dependencies = [
  "apollo-proto-rust",
  "cosmwasm-std",
@@ -307,7 +307,6 @@ dependencies = [
 name = "cw20-steak-hub"
 version = "2.0.0"
 dependencies = [
- "apollo-proto-rust",
  "cosmwasm-std",
  "cw-asset",
  "cw-storage-plus",
