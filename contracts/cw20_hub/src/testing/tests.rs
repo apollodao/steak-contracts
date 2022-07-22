@@ -3,10 +3,10 @@ use cosmwasm_std::{
     OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse, SubMsgResult, Uint128,
     WasmMsg,
 };
-use cw20::{Cw20ExecuteMsg, MinterResponse};
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
 
 use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
-use cw_token::implementations::cw20::{Cw20, Cw20Instantiator, REPLY_SAVE_CW20_ADDRESS};
+use cw_token::implementations::cw20::{Cw20Instantiator, REPLY_SAVE_CW20_ADDRESS};
 use std::{str::FromStr, vec};
 
 use crate::contract::{execute, instantiate, reply};
@@ -14,7 +14,7 @@ use steak::error::SteakContractError;
 use steak::helpers::{parse_coin, parse_received_fund};
 use steak::hub::{
     Batch, CallbackMsg, ConfigResponse, ExecuteMsg, InstantiateMsg, PendingBatch, QueryMsg,
-    StateResponse, UnbondRequest, UnbondRequestsByBatchResponseItem,
+    ReceiveMsg, StateResponse, UnbondRequest, UnbondRequestsByBatchResponseItem,
     UnbondRequestsByUserResponseItem,
 };
 use steak::math::{
@@ -142,7 +142,7 @@ fn proper_instantiation() {
 #[test]
 fn bonding() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     // Bond when no delegation has been made
     // In this case, the full deposit simply goes to the first validator
@@ -276,7 +276,7 @@ fn bonding() {
 fn harvesting() {
     let mut deps = setup_test();
 
-    let state = State::<Cw20>::default();
+    let state = State::default();
     // Assume users have bonded a total of 1,000,000 uosmo and minted the same amount of usteak
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 341667),
@@ -342,7 +342,7 @@ fn harvesting() {
 #[test]
 fn registering_unlocked_coins() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     // After withdrawing staking rewards, we parse the `coin_received` event to find the received amounts
     let event = Event::new("coin_received")
@@ -381,7 +381,7 @@ fn registering_unlocked_coins() {
 #[test]
 fn reinvesting() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 333334),
@@ -449,7 +449,7 @@ fn reinvesting() {
 #[test]
 fn queuing_unbond() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     // Only Steak token is accepted for unbonding requests
     // TODO: Should unwrap(). Since it is a cw20 should return a transferfrom msg.
@@ -539,11 +539,28 @@ fn queuing_unbond() {
     let res = execute(
         deps.as_mut(),
         mock_env_at_timestamp(12345), // est_unbond_start_time = 269200
-        mock_info("user_1", &[coin(23456u128, DENOM)]),
-        ExecuteMsg::QueueUnbond {
-            receiver: None,
+        mock_info(DENOM, &vec![]),
+        ExecuteMsg::Receive(Cw20ReceiveMsg {
+            sender: "user_1".to_string(),
             amount: Uint128::from(23456u128),
-        },
+            msg: to_binary(&ReceiveMsg::QueueUnbond { receiver: None }).unwrap(),
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(res.messages, vec![]);
+
+    // User 3 creates an unbonding request after `est_unbond_start_time` is reached. The unbond
+    // request is saved, and the pending is automatically submitted for unbonding
+    let res = execute(
+        deps.as_mut(),
+        mock_env_at_timestamp(269201), // est_unbond_start_time = 269200
+        mock_info(DENOM, &vec![]),
+        ExecuteMsg::Receive(Cw20ReceiveMsg {
+            sender: "user_3".to_string(),
+            amount: Uint128::from(69420u128),
+            msg: to_binary(&ReceiveMsg::QueueUnbond { receiver: None }).unwrap(),
+        }),
     )
     .unwrap();
 
@@ -552,65 +569,13 @@ fn queuing_unbond() {
         vec![SubMsg {
             id: 0,
             msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: DENOM.to_string(),
-                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    amount: Uint128::new(23456),
-                    owner: "user_1".to_string(),
-                    recipient: MOCK_CONTRACT_ADDR.to_string()
-                })
-                .unwrap(),
+                contract_addr: MOCK_CONTRACT_ADDR.to_string(),
+                msg: to_binary(&ExecuteMsg::SubmitBatch {}).unwrap(),
                 funds: vec![]
             }),
             gas_limit: None,
             reply_on: ReplyOn::Never
         }]
-    );
-
-    assert_eq!(res.messages.len(), 1);
-
-    // User 3 creates an unbonding request after `est_unbond_start_time` is reached. The unbond
-    // request is saved, and the pending is automatically submitted for unbonding
-    let res = execute(
-        deps.as_mut(),
-        mock_env_at_timestamp(269201), // est_unbond_start_time = 269200
-        mock_info("user_3", &vec![]),
-        ExecuteMsg::QueueUnbond {
-            receiver: None,
-            amount: Uint128::from(69420u128),
-        },
-    )
-    .unwrap();
-
-    assert_eq!(res.messages.len(), 2);
-    assert_eq!(
-        res.messages,
-        vec![
-            SubMsg {
-                id: 0,
-                msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: DENOM.to_string(),
-                    msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                        amount: Uint128::new(69420),
-                        owner: "user_3".to_string(),
-                        recipient: MOCK_CONTRACT_ADDR.to_string()
-                    })
-                    .unwrap(),
-                    funds: vec![]
-                }),
-                gas_limit: None,
-                reply_on: ReplyOn::Never
-            },
-            SubMsg {
-                id: 0,
-                msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: MOCK_CONTRACT_ADDR.to_string(),
-                    msg: to_binary(&ExecuteMsg::SubmitBatch {}).unwrap(),
-                    funds: vec![]
-                }),
-                gas_limit: None,
-                reply_on: ReplyOn::Never
-            }
-        ]
     );
 
     // The users' unbonding requests should have been saved
@@ -661,7 +626,7 @@ fn queuing_unbond() {
 #[test]
 fn submitting_batch() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     // uosmo bonded: 1,037,345
     // usteak supply: 1,012,043
@@ -799,7 +764,7 @@ fn submitting_batch() {
 #[test]
 fn reconciling() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     let previous_batches = vec![
         Batch {
@@ -934,7 +899,7 @@ fn reconciling() {
 #[test]
 fn withdrawing_unbonded() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     // We simulate a most general case:
     // - batches 1 and 2 have finished unbonding
@@ -1192,7 +1157,7 @@ fn withdrawing_unbonded() {
 #[test]
 fn adding_validator() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     let err = execute(
         deps.as_mut(),
@@ -1248,7 +1213,7 @@ fn adding_validator() {
 #[test]
 fn removing_validator() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 341667),
@@ -1322,7 +1287,7 @@ fn removing_validator() {
 #[test]
 fn transferring_ownership() {
     let mut deps = setup_test();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     let err = execute(
         deps.as_mut(),
@@ -1414,7 +1379,7 @@ fn querying_previous_batches() {
         },
     ];
 
-    let state = State::<Cw20>::default();
+    let state = State::default();
     for batch in &batches {
         state
             .previous_batches
@@ -1493,7 +1458,7 @@ fn querying_previous_batches() {
 #[test]
 fn querying_unbond_requests() {
     let mut deps = mock_dependencies();
-    let state = State::<Cw20>::default();
+    let state = State::default();
 
     let unbond_requests = vec![
         UnbondRequest {

@@ -212,6 +212,8 @@ pub fn receive_cw20<T: SteakToken>(
 
     // Only accept cw20 messages from the steak token contract
     if info.sender != steak_token.to_string() {
+        println!("{}", info.sender);
+        println!("{}", steak_token.to_string());
         return Err(SteakContractError::InvalidCoinSent {});
     }
 
