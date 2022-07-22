@@ -14,7 +14,7 @@ apollo-protocol = {git = "https://github.com/apollodao/apollo-protocol.git", tag
 cosmwasm-std = {version = "1.0.0", features = ["stargate"]}
 cw-asset = "2.0.0"
 cw-storage-plus = "0.13.4"
-cw-token = {branch = "master", git = "https://github.com/apollodao/cw-token.git"}
+cw-token = {branch = "dev/debug-osmosis-instantiate", git = "https://github.com/apollodao/cw-token.git"}
 cw20 = "0.13.4"
 cw20-base = "0.13.4"
 prost = "0.10"
