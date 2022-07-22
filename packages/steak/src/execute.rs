@@ -28,7 +28,7 @@ use crate::types::{Coins, Delegation};
 // Instantiation
 //--------------------------------------------------------------------------------------------------
 
-pub fn instantiate<S: SteakToken, T: Instantiate<S>>(
+pub fn instantiate<S: SteakToken, T: Instantiate<S> + Clone>(
     deps: DepsMut,
     env: Env,
     msg: InstantiateMsg<T>,
@@ -64,7 +64,10 @@ pub fn instantiate<S: SteakToken, T: Instantiate<S>>(
         .performance_fee
         .save(deps.storage, &Decimal::percent(msg.performance_fee))?;
 
-    let init_token_msg = msg.token_instantiator.instantiate_msg()?;
+    let mut token_instantiator = msg.token_instantiator.clone();
+    token_instantiator.set_admin_addr(&env.contract.address);
+
+    let init_token_msg = token_instantiator.instantiate_msg()?;
 
     Ok(Response::new().add_submessage(init_token_msg))
 }
