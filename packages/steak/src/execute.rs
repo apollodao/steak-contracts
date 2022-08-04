@@ -149,11 +149,11 @@ fn callback(
 pub const REPLY_REGISTER_RECEIVED_COINS: u64 = 1;
 
 pub fn reply<S: SteakToken, T: Instantiate<S>>(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     reply: Reply,
 ) -> Result<Response, SteakContractError> {
-    let r = T::save_asset(deps.storage, deps.api, &reply, S::get_item());
+    let r = T::save_asset(deps.branch(), &env, &reply, S::get_item());
     if let Err(err) = r {
         match err {
             // continue to default reply id match arm if error is InvalidReplyId
