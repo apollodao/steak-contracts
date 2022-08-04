@@ -1,17 +1,12 @@
-use std::convert::TryFrom;
-use std::fmt::Display;
-
+use crate::error::SteakContractError;
 use crate::hub::{Batch, PendingBatch, UnbondRequest};
+use crate::types::BooleanKey;
 use cosmwasm_std::{Addr, Coin, Decimal, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 use cw_token::implementations::{cw20::Cw20, osmosis::OsmosisDenom};
 use cw_token::{Burn, Mint, Token};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-
-use crate::error::SteakContractError;
-
-use crate::types::BooleanKey;
 
 pub trait SteakToken: Token + Mint + Burn + ItemStorage {}
 
