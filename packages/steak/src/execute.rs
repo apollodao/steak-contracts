@@ -60,12 +60,12 @@ pub fn instantiate<S: SteakToken, T: Instantiate<S> + Clone>(
         .performance_fee
         .save(deps.storage, &Decimal::percent(msg.performance_fee))?;
 
-    let mut token_instantiator = msg.token_instantiator.clone();
+    let mut token_instantiator = msg.token_instantiator;
     token_instantiator.set_admin_addr(&env.contract.address);
 
-    let init_token_msg = token_instantiator.instantiate_msg()?;
+    let init_token_res = token_instantiator.instantiate_res(&env)?;
 
-    Ok(Response::new().add_submessage(init_token_msg))
+    Ok(init_token_res)
 }
 
 pub fn execute<T: SteakToken>(
@@ -212,7 +212,7 @@ pub fn receive_cw20<T: SteakToken>(
     // Only accept cw20 messages from the steak token contract
     if info.sender != steak_token.to_string() {
         println!("{}", info.sender);
-        println!("{}", steak_token.to_string());
+        println!("{}", steak_token);
         return Err(SteakContractError::InvalidCoinSent {});
     }
 

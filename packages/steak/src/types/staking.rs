@@ -1,7 +1,7 @@
 use cosmwasm_std::{Coin, CosmosMsg, StakingMsg};
 
 #[derive(Clone)]
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct Delegation {
     pub validator: String,
     pub amount: u128,
@@ -23,7 +23,7 @@ impl Delegation {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Undelegation {
     pub validator: String,
     pub amount: u128,
@@ -45,7 +45,7 @@ impl Undelegation {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Redelegation {
     pub src: String,
     pub dst: String,

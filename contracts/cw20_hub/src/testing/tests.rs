@@ -539,7 +539,7 @@ fn queuing_unbond() {
     let res = execute(
         deps.as_mut(),
         mock_env_at_timestamp(12345), // est_unbond_start_time = 269200
-        mock_info(DENOM, &vec![]),
+        mock_info(DENOM, &[]),
         ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: "user_1".to_string(),
             amount: Uint128::from(23456u128),
@@ -555,7 +555,7 @@ fn queuing_unbond() {
     let res = execute(
         deps.as_mut(),
         mock_env_at_timestamp(269201), // est_unbond_start_time = 269200
-        mock_info(DENOM, &vec![]),
+        mock_info(DENOM, &[]),
         ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: "user_3".to_string(),
             amount: Uint128::from(69420u128),
@@ -583,14 +583,14 @@ fn queuing_unbond() {
         .unbond_requests
         .load(
             deps.as_ref().storage,
-            (1u64.into(), &Addr::unchecked("user_1")),
+            (1u64, &Addr::unchecked("user_1")),
         )
         .unwrap();
     let ubr2 = state
         .unbond_requests
         .load(
             deps.as_ref().storage,
-            (1u64.into(), &Addr::unchecked("user_3")),
+            (1u64, &Addr::unchecked("user_3")),
         )
         .unwrap();
 
@@ -662,7 +662,7 @@ fn submitting_batch() {
             .save(
                 deps.as_mut().storage,
                 (
-                    unbond_request.id.into(),
+                    unbond_request.id,
                     &Addr::unchecked(unbond_request.user.clone()),
                 ),
                 unbond_request,
@@ -747,7 +747,7 @@ fn submitting_batch() {
     // Previous batch should have been updated
     let previous_batch = state
         .previous_batches
-        .load(deps.as_ref().storage, 1u64.into())
+        .load(deps.as_ref().storage, 1u64)
         .unwrap();
     assert_eq!(
         previous_batch,
@@ -802,7 +802,7 @@ fn reconciling() {
             .previous_batches
             .save(
                 deps.as_mut().storage,
-                previous_batch.id.into(),
+                previous_batch.id,
                 previous_batch,
             )
             .unwrap();
@@ -854,7 +854,7 @@ fn reconciling() {
     // batch 3: 1506 - 273 = 1233
     let batch = state
         .previous_batches
-        .load(deps.as_ref().storage, 2u64.into())
+        .load(deps.as_ref().storage, 2u64)
         .unwrap();
     assert_eq!(
         batch,
@@ -869,7 +869,7 @@ fn reconciling() {
 
     let batch = state
         .previous_batches
-        .load(deps.as_ref().storage, 3u64.into())
+        .load(deps.as_ref().storage, 3u64)
         .unwrap();
     assert_eq!(
         batch,
@@ -885,13 +885,13 @@ fn reconciling() {
     // Batches 1 and 4 should not have changed
     let batch = state
         .previous_batches
-        .load(deps.as_ref().storage, 1u64.into())
+        .load(deps.as_ref().storage, 1u64)
         .unwrap();
     assert_eq!(batch, previous_batches[0]);
 
     let batch = state
         .previous_batches
-        .load(deps.as_ref().storage, 4u64.into())
+        .load(deps.as_ref().storage, 4u64)
         .unwrap();
     assert_eq!(batch, previous_batches[3]);
 }
@@ -939,7 +939,7 @@ fn withdrawing_unbonded() {
             .save(
                 deps.as_mut().storage,
                 (
-                    unbond_request.id.into(),
+                    unbond_request.id,
                     &Addr::unchecked(unbond_request.user.clone()),
                 ),
                 unbond_request,
@@ -983,7 +983,7 @@ fn withdrawing_unbonded() {
             .previous_batches
             .save(
                 deps.as_mut().storage,
-                previous_batch.id.into(),
+                previous_batch.id,
                 previous_batch,
             )
             .unwrap();
@@ -1048,7 +1048,7 @@ fn withdrawing_unbonded() {
     // Previous batches should have been updated
     let batch = state
         .previous_batches
-        .load(deps.as_ref().storage, 1u64.into())
+        .load(deps.as_ref().storage, 1u64)
         .unwrap();
     assert_eq!(
         batch,
@@ -1063,7 +1063,7 @@ fn withdrawing_unbonded() {
 
     let err = state
         .previous_batches
-        .load(deps.as_ref().storage, 2u64.into())
+        .load(deps.as_ref().storage, 2u64)
         .unwrap_err();
     assert_eq!(
         err,
@@ -1077,14 +1077,14 @@ fn withdrawing_unbonded() {
         .unbond_requests
         .load(
             deps.as_ref().storage,
-            (1u64.into(), &Addr::unchecked("user_1")),
+            (1u64, &Addr::unchecked("user_1")),
         )
         .unwrap_err();
     let err2 = state
         .unbond_requests
         .load(
             deps.as_ref().storage,
-            (1u64.into(), &Addr::unchecked("user_1")),
+            (1u64, &Addr::unchecked("user_1")),
         )
         .unwrap_err();
 
@@ -1129,7 +1129,7 @@ fn withdrawing_unbonded() {
     // Batch 1 and user 2's unbonding request should have been purged from storage
     let err = state
         .previous_batches
-        .load(deps.as_ref().storage, 1u64.into())
+        .load(deps.as_ref().storage, 1u64)
         .unwrap_err();
     assert_eq!(
         err,
@@ -1142,7 +1142,7 @@ fn withdrawing_unbonded() {
         .unbond_requests
         .load(
             deps.as_ref().storage,
-            (1u64.into(), &Addr::unchecked("user_3")),
+            (1u64, &Addr::unchecked("user_3")),
         )
         .unwrap_err();
 
@@ -1383,7 +1383,7 @@ fn querying_previous_batches() {
     for batch in &batches {
         state
             .previous_batches
-            .save(deps.as_mut().storage, batch.id.into(), batch)
+            .save(deps.as_mut().storage, batch.id, batch)
             .unwrap();
     }
 
@@ -1402,7 +1402,7 @@ fn querying_previous_batches() {
             limit: None,
         },
     );
-    assert_eq!(res, batches.clone());
+    assert_eq!(res, batches);
 
     let res: Vec<Batch> = query_helper(
         deps.as_ref(),
@@ -1489,7 +1489,7 @@ fn querying_unbond_requests() {
             .save(
                 deps.as_mut().storage,
                 (
-                    unbond_request.id.into(),
+                    unbond_request.id,
                     &Addr::unchecked(unbond_request.user.clone()),
                 ),
                 unbond_request,
