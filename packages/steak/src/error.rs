@@ -77,6 +77,10 @@ pub enum SteakContractError {
     /// Invalid Reply ID Error
     #[error("invalid reply id: {id}; must be 1, 2 or 3")]
     InvalidReplyId { id: u64 },
+
+    /// Invalid Performance Fee Error
+    #[error("the max value of performance fee is 100")]
+    InvalidPerformanceFee {},
     // Add any other custom errors you like here.
     // Look at https://docs.rs/thiserror/1.0.31/thiserror/ for details.
 }

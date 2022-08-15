@@ -25,3 +25,6 @@ thiserror = {version = "1.0.31"}
 [dev-dependencies]
 prost = "0.10"
 serde = {version = "1.0.103", default-features = false, features = ["derive"]}
+
+[profile.release]
+overflow-checks = true

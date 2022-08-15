@@ -29,6 +29,13 @@ pub fn instantiate<S: SteakToken, T: Instantiate<S> + Clone>(
     env: Env,
     msg: InstantiateMsg<T>,
 ) -> Result<Response, SteakContractError> {
+    if msg.performance_fee > 100 {
+        return Err(SteakContractError::InvalidPerformanceFee {});
+    }
+
+    let mut validators: Vec<String> = msg.validators.clone();
+    validators.sort();
+    validators.dedup();
     let state = State::default();
 
     state
@@ -36,7 +43,7 @@ pub fn instantiate<S: SteakToken, T: Instantiate<S> + Clone>(
         .save(deps.storage, &deps.api.addr_validate(&msg.owner)?)?;
     state.epoch_period.save(deps.storage, &msg.epoch_period)?;
     state.unbond_period.save(deps.storage, &msg.unbond_period)?;
-    state.validators.save(deps.storage, &msg.validators)?;
+    state.validators.save(deps.storage, &validators)?;
     state.unlocked_coins.save(deps.storage, &vec![])?;
     state
         .total_usteak_supply
@@ -211,8 +218,6 @@ pub fn receive_cw20<T: SteakToken>(
 
     // Only accept cw20 messages from the steak token contract
     if info.sender != steak_token.to_string() {
-        println!("{}", info.sender);
-        println!("{}", steak_token);
         return Err(SteakContractError::InvalidCoinSent {});
     }
 
@@ -776,12 +781,19 @@ pub fn remove_validator(
 
     let delegations = query_delegations(&deps.querier, &validators, &env.contract.address)?;
     let delegation_to_remove = query_delegation(&deps.querier, &validator, &env.contract.address)?;
-    let new_redelegations = compute_redelegations_for_removal(&delegation_to_remove, &delegations);
+    let mut redelegate_submsgs: Vec<SubMsg> = vec![];
+    if delegation_to_remove.amount > 0 {
+        let new_redelegations =
+            compute_redelegations_for_removal(&delegation_to_remove, &delegations);
 
-    let redelegate_submsgs = new_redelegations
-        .iter()
-        .map(|d| SubMsg::reply_on_success(d.to_cosmos_msg(), REPLY_REGISTER_RECEIVED_COINS))
-        .collect::<Vec<SubMsg>>();
+        redelegate_submsgs.append(
+            new_redelegations
+                .iter()
+                .map(|d| SubMsg::reply_on_success(d.to_cosmos_msg(), REPLY_REGISTER_RECEIVED_COINS))
+                .collect::<Vec<SubMsg>>()
+                .as_mut(),
+        );
+    }
 
     let event = Event::new("steak/validator_removed").add_attribute("validator", validator);
 
