@@ -779,10 +779,10 @@ pub fn remove_validator(
         Ok(validators)
     })?;
 
-    let delegations = query_delegations(&deps.querier, &validators, &env.contract.address)?;
     let delegation_to_remove = query_delegation(&deps.querier, &validator, &env.contract.address)?;
     let mut redelegate_submsgs: Vec<SubMsg> = vec![];
     if delegation_to_remove.amount > 0 {
+        let delegations = query_delegations(&deps.querier, &validators, &env.contract.address)?;
         let new_redelegations =
             compute_redelegations_for_removal(&delegation_to_remove, &delegations);
 
