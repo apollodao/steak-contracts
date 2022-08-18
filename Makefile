@@ -15,6 +15,9 @@ schema:
 	cd contracts/cw20_hub && cargo schema --target-dir .
 	cd contracts/osmosis_hub && cargo schema --target-dir .
 
+ts-types:
+	cd scripts && npm ci && npm run generate
+
 coverage:
 	cargo outdated
 	cargo tarpaulin --verbose --all-features --workspace --timeout 120
