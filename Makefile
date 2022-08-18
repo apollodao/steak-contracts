@@ -11,6 +11,10 @@ fmt:
 
 m1_all: apple_m1_prod fmt
 
+schema:
+	cd contracts/cw20_hub && cargo schema --target-dir .
+	cd contracts/osmosis_hub && cargo schema --target-dir .
+
 coverage:
 	cargo outdated
 	cargo tarpaulin --verbose --all-features --workspace --timeout 120
