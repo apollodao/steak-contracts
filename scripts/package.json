@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "generate": "sh generate-types.sh"
+    "generate-types": "sh generate-types.sh"
   },
   "dependencies": {
     "@terra-money/terra.js": "^3.1.2",

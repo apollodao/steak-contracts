@@ -16,7 +16,7 @@ schema:
 	cd contracts/osmosis_hub && cargo schema --target-dir .
 
 ts-types:
-	cd scripts && npm ci && npm run generate
+	cd scripts && npm ci && npm run generate-types
 
 coverage:
 	cargo outdated
