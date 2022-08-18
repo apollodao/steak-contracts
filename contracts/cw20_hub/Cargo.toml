@@ -23,6 +23,7 @@ steak = {path = "../../packages/steak"}
 thiserror = {version = "1.0.31"}
 
 [dev-dependencies]
+cosmwasm-schema = {version = "1.0.0"}
 prost = "0.10"
 serde = {version = "1.0.103", default-features = false, features = ["derive"]}
 

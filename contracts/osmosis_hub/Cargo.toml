@@ -23,7 +23,7 @@ thiserror = {version = "1.0.31"}
 
 [dev-dependencies]
 apollo-proto-rust = {tag = "v0.1.0", git = "https://github.com/apollodao/apollo-proto-rust.git"}
-prost = "0.10"
+cosmwasm-schema = {version = "1.0.0"}
 serde = {version = "1.0.103", default-features = false, features = ["derive"]}
 
 [profile.release]

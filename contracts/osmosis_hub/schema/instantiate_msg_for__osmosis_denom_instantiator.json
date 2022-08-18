@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg_for_OsmosisDenomInstantiator",
+  "type": "object",
+  "required": [
+    "decimals",
+    "distribution_contract",
+    "epoch_period",
+    "name",
+    "owner",
+    "performance_fee",
+    "symbol",
+    "token_instantiator",
+    "unbond_period",
+    "validators"
+  ],
+  "properties": {
+    "decimals": {
+      "description": "Number of decimals of the liquid staking token",
+      "type": "integer",
+      "format": "uint8",
+      "minimum": 0.0
+    },
+    "distribution_contract": {
+      "description": "Contract where reward funds are sent",
+      "type": "string"
+    },
+    "epoch_period": {
+      "description": "How often the unbonding queue is to be executed, in seconds",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "name": {
+      "description": "Name of the liquid staking token",
+      "type": "string"
+    },
+    "owner": {
+      "description": "Account who can call certain privileged functions",
+      "type": "string"
+    },
+    "performance_fee": {
+      "description": "Fee that is awarded to distribution contract when harvesting rewards",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "symbol": {
+      "description": "Symbol of the liquid staking token",
+      "type": "string"
+    },
+    "token_instantiator": {
+      "$ref": "#/definitions/OsmosisDenomInstantiator"
+    },
+    "unbond_period": {
+      "description": "The staking module's unbonding time, in seconds",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "validators": {
+      "description": "Initial set of validators who will receive the delegations",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "OsmosisDenomInstantiator": {
+      "type": "object",
+      "required": [
+        "denom",
+        "sender"
+      ],
+      "properties": {
+        "denom": {
+          "type": "string"
+        },
+        "sender": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
