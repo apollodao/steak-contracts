@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "generate-types": "sh generate-types.sh"
+  },
   "dependencies": {
     "@terra-money/terra.js": "^3.1.2",
     "promptly": "^3.2.0",
@@ -13,6 +16,7 @@
     "eslint": "^8.11.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.0.0",
+    "json-schema-to-typescript": "^11.0.2",
     "typescript": "^4.6.3"
   },
   "engines": {
