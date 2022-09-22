@@ -603,7 +603,7 @@ pub fn reconcile(deps: DepsMut, env: Env) -> Result<Response, SteakContractError
         .checked_sub(uosmo_actual)
         .unwrap_or_else(|_| Uint128::zero());
     if uosmo_to_deduct.is_zero() {
-        batches = batches.into_iter().filter(|b| !b.reconciled).collect_vec();
+        batches = batches.into_iter().filter(|b| !b.reconciled).collect();
     }
     reconcile_batches(&mut batches, uosmo_expected - uosmo_actual);
 
