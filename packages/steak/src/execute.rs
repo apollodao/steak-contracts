@@ -602,9 +602,7 @@ pub fn reconcile(deps: DepsMut, env: Env) -> Result<Response, SteakContractError
     let uosmo_to_deduct = uosmo_expected
         .checked_sub(uosmo_actual)
         .unwrap_or_else(|_| Uint128::zero());
-    if !uosmo_to_deduct.is_zero() {
-        reconcile_batches(&mut batches, uosmo_expected - uosmo_actual);
-    }
+    reconcile_batches(&mut batches, uosmo_to_deduct);
 
     for batch in &batches {
         state.previous_batches.save(deps.storage, batch.id, batch)?;
