@@ -1,7 +1,7 @@
 use cosmwasm_std::{Coin, CosmosMsg, StakingMsg};
 
 #[derive(Clone)]
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct Delegation {
     pub validator: String,
     pub amount: u128,
@@ -18,12 +18,12 @@ impl Delegation {
     pub fn to_cosmos_msg(&self) -> CosmosMsg {
         CosmosMsg::Staking(StakingMsg::Delegate {
             validator: self.validator.clone(),
-            amount: Coin::new(self.amount, "uluna"),
+            amount: Coin::new(self.amount, "uosmo"),
         })
     }
 }
 
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Undelegation {
     pub validator: String,
     pub amount: u128,
@@ -40,12 +40,12 @@ impl Undelegation {
     pub fn to_cosmos_msg(&self) -> CosmosMsg {
         CosmosMsg::Staking(StakingMsg::Undelegate {
             validator: self.validator.clone(),
-            amount: Coin::new(self.amount, "uluna"),
+            amount: Coin::new(self.amount, "uosmo"),
         })
     }
 }
 
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Redelegation {
     pub src: String,
     pub dst: String,
@@ -65,7 +65,7 @@ impl Redelegation {
         CosmosMsg::Staking(StakingMsg::Redelegate {
             src_validator: self.src.clone(),
             dst_validator: self.dst.clone(),
-            amount: Coin::new(self.amount, "uluna"),
+            amount: Coin::new(self.amount, "uosmo"),
         })
     }
 }

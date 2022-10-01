@@ -1,0 +1,30 @@
+[package]
+authors = ["larry <gm@larry.engineer>", "PFC <pfc-validator@protonmail.com>"]
+edition = "2018"
+license = "GPL-3.0-or-later"
+name = "osmosis-steak-hub"
+repository = "https://github.com/st4k3h0us3/steak-contracts"
+version = "2.0.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+backtraces = ["cosmwasm-std/backtraces"]
+
+[dependencies]
+cosmwasm-std = {version = "1.0", features = ["staking"]}
+cw-asset = "2.0.0"
+cw-storage-plus = "0.13"
+cw-token = {tag = "v0.2.0", git = "https://github.com/apollodao/cw-token.git"}
+cw20 = "0.13.2"
+steak = {path = "../../packages/steak"}
+thiserror = {version = "1.0.31"}
+
+[dev-dependencies]
+apollo-proto-rust = {tag = "v0.1.0", git = "https://github.com/apollodao/apollo-proto-rust.git"}
+prost = "0.10"
+serde = {version = "1.0.103", default-features = false, features = ["derive"]}
+
+[profile.release]
+overflow-checks = true

@@ -1,16 +1,23 @@
 [package]
-name = "steak"
-version = "2.0.0"
 authors = ["larry <gm@larry.engineer>", "PFC <pfc-validator@protonmail.com>"]
-edition = "2018"
 description = "Liquid staking protocol for the cosmos"
-license = "GPL-3.0-or-later"
+edition = "2018"
 homepage = "https://steak.club"
+license = "GPL-3.0-or-later"
+name = "steak"
 repository = "https://github.com/st4k3h0us3/steak-contracts"
+version = "2.0.0"
 
 [dependencies]
-cosmwasm-std = "1.0"
-cw20 = "0.13"
+apollo-proto-rust = {tag = "v0.1.0", git = "https://github.com/apollodao/apollo-proto-rust.git"}
+apollo-protocol = {git = "https://github.com/apollodao/apollo-protocol.git", tag = "v0.11.3"}
+cosmwasm-std = {version = "1.0.0", features = ["stargate"]}
+cw-asset = "2.0.0"
+cw-storage-plus = "0.13.4"
+cw-token = {tag = "v0.2.0", git = "https://github.com/apollodao/cw-token.git"}
+cw20 = "0.13.4"
+cw20-base = "0.13.4"
+prost = "0.10"
 schemars = "0.8.1"
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-
+serde = {version = "1.0.103", default-features = false, features = ["derive"]}
+thiserror = {version = "1.0.31"}
