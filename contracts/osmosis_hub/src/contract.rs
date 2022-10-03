@@ -1,12 +1,10 @@
 use cosmwasm_std::{
     entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
 };
-use cw_token::implementations::osmosis::{OsmosisDenom, OsmosisDenomInstantiator};
+use cw_token::osmosis::OsmosisDenom;
 use steak::error::SteakContractError;
 use steak::execute;
-use steak::hub::{ExecuteMsg, MigrateMsg, QueryMsg};
-
-pub type InstantiateMsg = steak::hub::InstantiateMsg<OsmosisDenomInstantiator>;
+use steak::hub::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 #[entry_point]
 pub fn instantiate(
@@ -15,7 +13,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, SteakContractError> {
-    execute::instantiate::<OsmosisDenom, OsmosisDenomInstantiator>(deps, env, msg)
+    execute::instantiate::<OsmosisDenom>(deps, env, msg)
 }
 
 #[entry_point]
@@ -30,11 +28,11 @@ pub fn execute(
 
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, SteakContractError> {
-    execute::reply::<OsmosisDenom, OsmosisDenomInstantiator>(deps, env, reply)
+    execute::base_reply(deps, env, reply)
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, SteakContractError> {
     execute::query::<OsmosisDenom>(deps, env, msg)
 }
 

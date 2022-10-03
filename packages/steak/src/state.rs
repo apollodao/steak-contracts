@@ -3,32 +3,6 @@ use crate::hub::{Batch, PendingBatch, UnbondRequest};
 use crate::types::BooleanKey;
 use cosmwasm_std::{Addr, Coin, Decimal, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
-use cw_token::implementations::{cw20::Cw20, osmosis::OsmosisDenom};
-use cw_token::{Burn, Mint, Token};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-
-pub trait SteakToken: Token + Mint + Burn + ItemStorage {}
-
-impl ItemStorage for OsmosisDenom {}
-impl SteakToken for OsmosisDenom {}
-
-impl ItemStorage for Cw20 {}
-impl SteakToken for Cw20 {}
-
-pub trait ItemStorage: Serialize + DeserializeOwned + Sized {
-    fn load(storage: &mut dyn Storage) -> Result<Self, SteakContractError> {
-        Ok(Self::get_item().load(storage)?)
-    }
-
-    fn save(&self, storage: &mut dyn Storage) -> Result<(), SteakContractError> {
-        Ok(Self::get_item().save(storage, self)?)
-    }
-
-    fn get_item<'a>() -> Item<'a, Self> {
-        Item::<Self>::new(STEAK_TOKEN_KEY)
-    }
-}
 
 pub struct State<'a> {
     /// Account who can call certain privileged functions
@@ -56,8 +30,6 @@ pub struct State<'a> {
     /// Fee that is awarded to distribution contract when harvesting rewards
     pub performance_fee: Item<'a, Decimal>,
 }
-
-pub(crate) const STEAK_TOKEN_KEY: &str = "steak_token";
 
 impl Default for State<'static> {
     fn default() -> Self {

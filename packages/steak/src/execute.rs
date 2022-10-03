@@ -9,7 +9,7 @@ use crate::math::{
     compute_unbond_amount, compute_undelegations, reconcile_batches,
 };
 use crate::queries;
-use crate::state::{State, SteakToken};
+use crate::state::State;
 use crate::types::{Coins, Delegation};
 use cosmwasm_std::{
     coins, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
@@ -17,17 +17,17 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_token::{CwTokenError, Instantiate};
+use cw_token::{Burn, Instantiate, Mint, Token, TokenStorage};
 use std::str::FromStr;
 
 //--------------------------------------------------------------------------------------------------
 // Instantiation
 //--------------------------------------------------------------------------------------------------
 
-pub fn instantiate<S: SteakToken, T: Instantiate<S> + Clone>(
+pub fn instantiate<S: Instantiate>(
     deps: DepsMut,
     env: Env,
-    msg: InstantiateMsg<T>,
+    msg: InstantiateMsg,
 ) -> Result<Response, SteakContractError> {
     if msg.performance_fee > 100 {
         return Err(SteakContractError::InvalidPerformanceFee {});
@@ -67,15 +67,12 @@ pub fn instantiate<S: SteakToken, T: Instantiate<S> + Clone>(
         .performance_fee
         .save(deps.storage, &Decimal::percent(msg.performance_fee))?;
 
-    let mut token_instantiator = msg.token_instantiator;
-    token_instantiator.set_admin_addr(&env.contract.address);
-
-    let init_token_res = token_instantiator.instantiate_res(&env)?;
+    let init_token_res = S::instantiate(deps, &env, msg.token_init_info)?;
 
     Ok(init_token_res)
 }
 
-pub fn execute<T: SteakToken>(
+pub fn execute<T: Token + Mint + Burn + TokenStorage>(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -113,7 +110,7 @@ pub fn execute<T: SteakToken>(
         ExecuteMsg::Harvest {} => harvest(deps, env),
         ExecuteMsg::Rebalance {} => rebalance(deps, env),
         ExecuteMsg::Reconcile {} => reconcile(deps, env),
-        ExecuteMsg::SubmitBatch {} => submit_batch::<T>(deps, env),
+        ExecuteMsg::SubmitBatch {} => submit_batch::<T>(deps, env, info),
         ExecuteMsg::QueueUnbond { receiver } => {
             let steak_token = T::load(deps.storage)?;
             if !T::is_native() {
@@ -151,29 +148,20 @@ fn callback(
 
 pub const REPLY_REGISTER_RECEIVED_COINS: u64 = 1;
 
-pub fn reply<S: SteakToken, T: Instantiate<S>>(
-    mut deps: DepsMut,
-    env: Env,
-    reply: Reply,
-) -> Result<Response, SteakContractError> {
-    let r = T::save_asset(deps.branch(), &env, &reply, S::get_item());
-    if let Err(err) = r {
-        match err {
-            // continue to default reply id match arm if error is InvalidReplyId
-            CwTokenError::InvalidReplyId {} => match reply.id {
-                REPLY_REGISTER_RECEIVED_COINS => {
-                    register_received_coins::<S>(deps, env, unwrap_reply(&reply)?.events)
-                }
-                id => Err(SteakContractError::InvalidReplyId { id }),
-            },
-            _ => Err(err.into()),
+pub fn base_reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, SteakContractError> {
+    match reply.id {
+        REPLY_REGISTER_RECEIVED_COINS => {
+            register_received_coins(deps, env, unwrap_reply(&reply)?.events)
         }
-    } else {
-        Ok(r?)
+        id => Err(SteakContractError::InvalidReplyId { id }),
     }
 }
 
-pub fn query<T: SteakToken>(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query<T: Token + Mint + Burn + TokenStorage>(
+    deps: Deps,
+    env: Env,
+    msg: QueryMsg,
+) -> Result<Binary, SteakContractError> {
     match msg {
         QueryMsg::Config {} => to_binary(&queries::config::<T>(deps)?),
         QueryMsg::State {} => to_binary(&queries::state(deps, env)?),
@@ -203,12 +191,13 @@ pub fn query<T: SteakToken>(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Bi
             limit,
         )?),
     }
+    .map_err(SteakContractError::Std)
 }
 
 //--------------------------------------------------------------------------------------------------
 // Cw20 recieve logic
 //--------------------------------------------------------------------------------------------------
-pub fn receive_cw20<T: SteakToken>(
+pub fn receive_cw20<T: Token + TokenStorage>(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -243,7 +232,7 @@ pub fn receive_cw20<T: SteakToken>(
 /// smallest amount of delegation. If delegations become severely unbalance as a result of this
 /// (e.g. when a single user makes a very big deposit), anyone can invoke `ExecuteMsg::Rebalance`
 /// to balance the delegations.
-pub fn bond<T: SteakToken>(
+pub fn bond<T: Mint + TokenStorage>(
     deps: DepsMut,
     env: Env,
     receiver: Addr,
@@ -287,8 +276,12 @@ pub fn bond<T: SteakToken>(
         REPLY_REGISTER_RECEIVED_COINS,
     );
 
-    let mint_response =
-        steak_token.mint(&env.contract.address, receiver.to_string(), usteak_to_mint)?;
+    let mint_response = steak_token.mint(
+        deps,
+        &env.contract.address,
+        receiver.to_string(),
+        usteak_to_mint,
+    )?;
 
     let event = Event::new("steakhub/bonded")
         .add_attribute("time", env.block.time.seconds().to_string())
@@ -381,7 +374,7 @@ pub fn reinvest(deps: DepsMut, env: Env) -> Result<Response, SteakContractError>
 }
 
 /// NOTE: a `SubMsgResponse` may contain multiple coin-receiving events, must handle them individually
-pub fn register_received_coins<T: SteakToken>(
+pub fn register_received_coins(
     deps: DepsMut,
     env: Env,
     mut events: Vec<Event>,
@@ -484,9 +477,10 @@ pub fn queue_unbond(
         .add_attribute("action", "steakhub/queue_unbond"))
 }
 
-pub fn submit_batch<T: SteakToken>(
-    deps: DepsMut,
+pub fn submit_batch<T: Burn + TokenStorage>(
+    mut deps: DepsMut,
     env: Env,
+    info: MessageInfo,
 ) -> Result<Response, SteakContractError> {
     let state = State::default();
     let validators = state.validators.load(deps.storage)?;
@@ -545,7 +539,13 @@ pub fn submit_batch<T: SteakToken>(
 
     let steak_token = T::load(deps.storage)?;
 
-    let burn_response = steak_token.burn(&env.contract.address, pending_batch.usteak_to_burn)?;
+    let burn_response = steak_token.burn(
+        deps.branch(),
+        env.to_owned(),
+        info,
+        env.contract.address.to_string(),
+        pending_batch.usteak_to_burn,
+    )?;
 
     state
         .total_usteak_supply

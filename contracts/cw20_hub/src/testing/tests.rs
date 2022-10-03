@@ -52,7 +52,7 @@ fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
             ],
             performance_fee: 5,
             distribution_contract: "distribution_contract".to_string(),
-            token_instantiator: Cw20Instantiator {
+            token_init_info: Cw20Instantiator {
                 label: "Apollo apOsmo token".to_string(),
                 admin: Some(MOCK_CONTRACT_ADDR.to_string()),
                 code_id: 1337u64,
@@ -581,17 +581,11 @@ fn queuing_unbond() {
     // The users' unbonding requests should have been saved
     let ubr1 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap();
     let ubr2 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_3")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_3")))
         .unwrap();
 
     assert_eq!(
@@ -800,11 +794,7 @@ fn reconciling() {
     for previous_batch in &previous_batches {
         state
             .previous_batches
-            .save(
-                deps.as_mut().storage,
-                previous_batch.id,
-                previous_batch,
-            )
+            .save(deps.as_mut().storage, previous_batch.id, previous_batch)
             .unwrap();
     }
 
@@ -981,11 +971,7 @@ fn withdrawing_unbonded() {
     for previous_batch in &previous_batches {
         state
             .previous_batches
-            .save(
-                deps.as_mut().storage,
-                previous_batch.id,
-                previous_batch,
-            )
+            .save(deps.as_mut().storage, previous_batch.id, previous_batch)
             .unwrap();
     }
 
@@ -1075,17 +1061,11 @@ fn withdrawing_unbonded() {
     // User 1's unbond requests in batches 1 and 2 should have been deleted
     let err1 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap_err();
     let err2 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap_err();
 
     assert_eq!(
@@ -1140,10 +1120,7 @@ fn withdrawing_unbonded() {
 
     let err = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_3")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_3")))
         .unwrap_err();
 
     assert_eq!(

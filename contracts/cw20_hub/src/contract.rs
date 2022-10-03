@@ -1,12 +1,11 @@
 use cosmwasm_std::{
     entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
 };
-use cw_token::implementations::cw20::{Cw20, Cw20Instantiator};
+use cw_token::cw20::Cw20;
+use cw_token::{CwTokenError, Instantiate};
 use steak::error::SteakContractError;
 use steak::execute;
-use steak::hub::{ExecuteMsg, MigrateMsg, QueryMsg};
-
-pub type InstantiateMsg = steak::hub::InstantiateMsg<Cw20Instantiator>;
+use steak::hub::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 #[entry_point]
 pub fn instantiate(
@@ -15,7 +14,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, SteakContractError> {
-    execute::instantiate(deps, env, msg)
+    execute::instantiate::<Cw20>(deps, env, msg)
 }
 
 #[entry_point]
@@ -29,12 +28,21 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, SteakContractError> {
-    execute::reply::<Cw20, Cw20Instantiator>(deps, env, reply)
+pub fn reply(mut deps: DepsMut, env: Env, reply: Reply) -> Result<Response, SteakContractError> {
+    match Cw20::reply_save_token(deps.branch(), &env, &reply) {
+        Ok(res) => Ok(res),
+        Err(e) => {
+            match e {
+                // continue to default reply id match arm if error is InvalidReplyId
+                CwTokenError::InvalidReplyId {} => execute::base_reply(deps, env, reply),
+                _ => Err(e.into()),
+            }
+        }
+    }
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, SteakContractError> {
     execute::query::<Cw20>(deps, env, msg)
 }
 

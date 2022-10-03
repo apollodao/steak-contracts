@@ -29,9 +29,7 @@ use steak::math::{
 use steak::state::State;
 use steak::types::{Coins, Delegation, Redelegation, Undelegation};
 
-use cw_token::implementations::osmosis::{
-    OsmosisDenomInstantiator, REPLY_SAVE_OSMOSIS_DENOM,
-};
+use cw_token::implementations::osmosis::{OsmosisDenomInstantiator, REPLY_SAVE_OSMOSIS_DENOM};
 
 use super::custom_querier::CustomQuerier;
 use super::helpers::{mock_dependencies, mock_env_at_timestamp, query_helper};
@@ -67,7 +65,7 @@ fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
             ],
             performance_fee: 5,
             distribution_contract: "distribution_contract".to_string(),
-            token_instantiator,
+            token_init_info: token_instantiator,
         },
     )
     .unwrap();
@@ -531,17 +529,11 @@ fn queuing_unbond() {
     // The users' unbonding requests should have been saved
     let ubr1 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap();
     let ubr2 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_3")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_3")))
         .unwrap();
 
     assert_eq!(
@@ -753,11 +745,7 @@ fn reconciling() {
     for previous_batch in &previous_batches {
         state
             .previous_batches
-            .save(
-                deps.as_mut().storage,
-                previous_batch.id,
-                previous_batch,
-            )
+            .save(deps.as_mut().storage, previous_batch.id, previous_batch)
             .unwrap();
     }
 
@@ -934,11 +922,7 @@ fn withdrawing_unbonded() {
     for previous_batch in &previous_batches {
         state
             .previous_batches
-            .save(
-                deps.as_mut().storage,
-                previous_batch.id,
-                previous_batch,
-            )
+            .save(deps.as_mut().storage, previous_batch.id, previous_batch)
             .unwrap();
     }
 
@@ -1028,17 +1012,11 @@ fn withdrawing_unbonded() {
     // User 1's unbond requests in batches 1 and 2 should have been deleted
     let err1 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap_err();
     let err2 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap_err();
 
     assert_eq!(
@@ -1093,10 +1071,7 @@ fn withdrawing_unbonded() {
 
     let err = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_3")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_3")))
         .unwrap_err();
 
     assert_eq!(

@@ -1,5 +1,7 @@
+use crate::error::SteakContractError;
 use cosmwasm_std::{Addr, Decimal, Deps, Env, Order, StdResult, Uint128};
-use cw_storage_plus::{Bound, CwIntKey, Item};
+use cw_storage_plus::{Bound, CwIntKey};
+use cw_token::{Token, TokenStorage};
 
 use crate::hub::{
     Batch, ConfigResponse, PendingBatch, StateResponse, UnbondRequestsByBatchResponseItem,
@@ -7,12 +9,12 @@ use crate::hub::{
 };
 
 use crate::helpers::query_delegations;
-use crate::state::{State, SteakToken, STEAK_TOKEN_KEY};
+use crate::state::State;
 
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
 
-pub fn config<T: SteakToken>(deps: Deps) -> StdResult<ConfigResponse> {
+pub fn config<T: Token + TokenStorage>(deps: Deps) -> Result<ConfigResponse, SteakContractError> {
     let state = State::default();
     Ok(ConfigResponse {
         owner: state.owner.load(deps.storage)?.into(),
@@ -20,9 +22,7 @@ pub fn config<T: SteakToken>(deps: Deps) -> StdResult<ConfigResponse> {
             .new_owner
             .may_load(deps.storage)?
             .map(|addr| addr.into()),
-        steak_token: Item::<T>::new(STEAK_TOKEN_KEY)
-            .load(deps.storage)?
-            .to_string(),
+        steak_token: T::load(deps.storage)?.to_string(),
         epoch_period: state.epoch_period.load(deps.storage)?,
         unbond_period: state.unbond_period.load(deps.storage)?,
         validators: state.validators.load(deps.storage)?,
