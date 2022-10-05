@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, Decimal, Deps, Env, Order, StdResult, Uint128};
-use cw_storage_plus::{Bound, CwIntKey, Item};
+use cw_storage_plus::{Bound, IntKey, Item};
 
 use crate::hub::{
     Batch, ConfigResponse, PendingBatch, StateResponse, UnbondRequestsByBatchResponseItem,

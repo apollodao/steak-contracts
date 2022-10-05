@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct InstantiateMsg<T> {
+pub struct InstantiateMsg {
     /// Account who can call certain privileged functions
     pub owner: String,
     /// Name of the liquid staking token
@@ -23,7 +23,6 @@ pub struct InstantiateMsg<T> {
     pub distribution_contract: String,
     /// Fee that is awarded to distribution contract when harvesting rewards
     pub performance_fee: u64,
-    pub token_instantiator: T,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -17,17 +17,19 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_token::{CwTokenError, Instantiate};
+use cw_token::Instantiate;
 use std::str::FromStr;
 
 //--------------------------------------------------------------------------------------------------
 // Instantiation
 //--------------------------------------------------------------------------------------------------
 
-pub fn instantiate<S: SteakToken, T: Instantiate<S> + Clone>(
+pub fn instantiate<T: Instantiate>(
     deps: DepsMut,
     env: Env,
-    msg: InstantiateMsg<T>,
+    msg: InstantiateMsg,
+    vault_token: T,
+    init_info: Option<Binary>,
 ) -> Result<Response, SteakContractError> {
     if msg.performance_fee > 100 {
         return Err(SteakContractError::InvalidPerformanceFee {});
@@ -67,10 +69,7 @@ pub fn instantiate<S: SteakToken, T: Instantiate<S> + Clone>(
         .performance_fee
         .save(deps.storage, &Decimal::percent(msg.performance_fee))?;
 
-    let mut token_instantiator = msg.token_instantiator;
-    token_instantiator.set_admin_addr(&env.contract.address);
-
-    let init_token_res = token_instantiator.instantiate_res(&env)?;
+    let init_token_res = vault_token.instantiate(deps, init_info)?;
 
     Ok(init_token_res)
 }
@@ -113,7 +112,7 @@ pub fn execute<T: SteakToken>(
         ExecuteMsg::Harvest {} => harvest(deps, env),
         ExecuteMsg::Rebalance {} => rebalance(deps, env),
         ExecuteMsg::Reconcile {} => reconcile(deps, env),
-        ExecuteMsg::SubmitBatch {} => submit_batch::<T>(deps, env),
+        ExecuteMsg::SubmitBatch {} => submit_batch::<T>(deps, env, info),
         ExecuteMsg::QueueUnbond { receiver } => {
             let steak_token = T::load(deps.storage)?;
             if !T::is_native() {
@@ -151,25 +150,16 @@ fn callback(
 
 pub const REPLY_REGISTER_RECEIVED_COINS: u64 = 1;
 
-pub fn reply<S: SteakToken, T: Instantiate<S>>(
-    mut deps: DepsMut,
+pub fn reply<S: SteakToken, T: Instantiate>(
+    deps: DepsMut,
     env: Env,
     reply: Reply,
 ) -> Result<Response, SteakContractError> {
-    let r = T::save_asset(deps.branch(), &env, &reply, S::get_item());
-    if let Err(err) = r {
-        match err {
-            // continue to default reply id match arm if error is InvalidReplyId
-            CwTokenError::InvalidReplyId {} => match reply.id {
-                REPLY_REGISTER_RECEIVED_COINS => {
-                    register_received_coins::<S>(deps, env, unwrap_reply(&reply)?.events)
-                }
-                id => Err(SteakContractError::InvalidReplyId { id }),
-            },
-            _ => Err(err.into()),
+    match reply.id {
+        REPLY_REGISTER_RECEIVED_COINS => {
+            register_received_coins::<S>(deps, env, unwrap_reply(&reply)?.events)
         }
-    } else {
-        Ok(r?)
+        id => Err(SteakContractError::InvalidReplyId { id }),
     }
 }
 
@@ -287,8 +277,12 @@ pub fn bond<T: SteakToken>(
         REPLY_REGISTER_RECEIVED_COINS,
     );
 
-    let mint_response =
-        steak_token.mint(&env.contract.address, receiver.to_string(), usteak_to_mint)?;
+    let mint_response = steak_token.mint(
+        deps,
+        &env.contract.address,
+        receiver.to_string(),
+        usteak_to_mint,
+    )?;
 
     let event = Event::new("steakhub/bonded")
         .add_attribute("time", env.block.time.seconds().to_string())
@@ -485,8 +479,9 @@ pub fn queue_unbond(
 }
 
 pub fn submit_batch<T: SteakToken>(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
+    info: MessageInfo,
 ) -> Result<Response, SteakContractError> {
     let state = State::default();
     let validators = state.validators.load(deps.storage)?;
@@ -545,7 +540,13 @@ pub fn submit_batch<T: SteakToken>(
 
     let steak_token = T::load(deps.storage)?;
 
-    let burn_response = steak_token.burn(&env.contract.address, pending_batch.usteak_to_burn)?;
+    let burn_response = steak_token.burn(
+        deps.branch(),
+        env.clone(),
+        info,
+        &env.contract.address,
+        pending_batch.usteak_to_burn,
+    )?;
 
     state
         .total_usteak_supply
