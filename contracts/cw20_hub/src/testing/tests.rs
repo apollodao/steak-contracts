@@ -1,7 +1,7 @@
 use cosmwasm_std::{
-    coin, coins, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, DistributionMsg,
-    Event, Order, OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse,
-    SubMsgResult, Uint128, WasmMsg,
+    coin, coins, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg, Event, Order,
+    OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse, SubMsgResult, Uint128,
+    WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 

@@ -149,14 +149,14 @@ fn callback(
 
 pub const REPLY_REGISTER_RECEIVED_COINS: u64 = 1;
 
-pub fn reply<S: SteakToken, T: Instantiate>(
+pub fn reply<T: SteakToken>(
     deps: DepsMut,
     env: Env,
     reply: Reply,
 ) -> Result<Response, SteakContractError> {
     match reply.id {
         REPLY_REGISTER_RECEIVED_COINS => {
-            register_received_coins::<S>(deps, env, unwrap_reply(&reply)?.events)
+            register_received_coins::<T>(deps, env, unwrap_reply(&reply)?.events)
         }
         id => Err(SteakContractError::InvalidReplyId { id }),
     }

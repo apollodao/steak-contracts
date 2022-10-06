@@ -33,7 +33,7 @@ pub fn execute(
 
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, SteakContractError> {
-    execute::reply::<OsmosisDenom, OsmosisDenom>(deps, env, reply)
+    execute::reply::<OsmosisDenom>(deps, env, reply)
 }
 
 #[entry_point]

@@ -35,7 +35,7 @@ pub fn execute(
 pub fn reply(mut deps: DepsMut, env: Env, reply: Reply) -> Result<Response, SteakContractError> {
     let save_token_response = Cw20::save_token(deps.branch(), &env, &reply, &Cw20::get_item())?;
 
-    let reply_response = execute::reply::<Cw20, Cw20>(deps, env, reply)?;
+    let reply_response = execute::reply::<Cw20>(deps, env, reply)?;
 
     Ok(merge_responses(vec![save_token_response, reply_response]))
 }
