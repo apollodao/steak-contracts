@@ -29,7 +29,6 @@ pub fn instantiate<T: Instantiate>(
     env: Env,
     msg: InstantiateMsg,
     vault_token: T,
-    init_info: Option<Binary>,
 ) -> Result<Response, SteakContractError> {
     if msg.performance_fee > 100 {
         return Err(SteakContractError::InvalidPerformanceFee {});
@@ -69,7 +68,7 @@ pub fn instantiate<T: Instantiate>(
         .performance_fee
         .save(deps.storage, &Decimal::percent(msg.performance_fee))?;
 
-    let init_token_res = vault_token.instantiate(deps, init_info)?;
+    let init_token_res = vault_token.instantiate(deps, msg.init_info)?;
 
     Ok(init_token_res)
 }

@@ -5,6 +5,7 @@ use cw_token::osmosis::OsmosisDenom;
 use steak::error::SteakContractError;
 use steak::execute;
 use steak::hub::{ExecuteMsg, MigrateMsg, QueryMsg};
+use steak::state::ItemStorage;
 
 pub type InstantiateMsg = steak::hub::InstantiateMsg;
 
@@ -15,9 +16,9 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, SteakContractError> {
-    let vault_token = OsmosisDenom::new(env.contract.address.to_string(), "apOSMO".into());
-
-    execute::instantiate::<OsmosisDenom>(deps, env, msg, vault_token, None)
+    let osmosis_denom = OsmosisDenom::new(env.contract.address.to_string(), "apOSMO".into());
+    osmosis_denom.save(deps.storage)?;
+    execute::instantiate::<OsmosisDenom>(deps, env, msg, osmosis_denom)
 }
 
 #[entry_point]

@@ -18,14 +18,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, SteakContractError> {
     let cw20 = Cw20(Addr::unchecked(String::default()));
-
-    //TODO: Add Cw20TokenInfo
-
-    // let cw20_init_info = Cw20InitInfo {
-    //     code_id: msg.cw20_code_id,
-    // };
-
-    execute::instantiate(deps, env, msg, cw20, None)
+    execute::instantiate(deps, env, msg, cw20)
 }
 
 #[entry_point]

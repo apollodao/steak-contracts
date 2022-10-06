@@ -1,4 +1,6 @@
-use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Decimal, Empty, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{
+    to_binary, Addr, Binary, Coin, CosmosMsg, Decimal, Empty, StdResult, Uint128, WasmMsg,
+};
 use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,6 +25,7 @@ pub struct InstantiateMsg {
     pub distribution_contract: String,
     /// Fee that is awarded to distribution contract when harvesting rewards
     pub performance_fee: u64,
+    pub init_info: Option<Binary>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -273,7 +273,7 @@ dependencies = [
 [[package]]
 name = "cw-token"
 version = "0.1.0"
-source = "git+https://github.com/apollodao/cw-token.git?tag=v0.4.0#52dfbc718abf7d917e8dfdc3df4161f97cd46d76"
+source = "git+https://github.com/apollodao/cw-token.git?tag=v0.4.1#cec6eeffe1e68950ac206c3773d276d9d6f116a3"
 dependencies = [
  "apollo-proto-rust",
  "cosmwasm-schema",

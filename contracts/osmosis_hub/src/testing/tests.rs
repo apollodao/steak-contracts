@@ -54,6 +54,7 @@ fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
             ],
             performance_fee: 5,
             distribution_contract: "distribution_contract".to_string(),
+            init_info: None,
         },
     )
     .unwrap();
