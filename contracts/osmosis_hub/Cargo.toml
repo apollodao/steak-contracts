@@ -16,7 +16,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 cosmwasm-std = {version = "1.0", features = ["staking"]}
 cw-asset = "2.0.0"
 cw-storage-plus = "0.15"
-cw-token = {tag = "v0.4.1", git = "https://github.com/apollodao/cw-token.git"}
+cw-token = {tag = "v0.5.0", git = "https://github.com/apollodao/cw-token.git"}
 cw20 = "0.13.2"
 steak = {path = "../../packages/steak"}
 thiserror = {version = "1.0.31"}
