@@ -3,10 +3,10 @@ use cosmwasm_std::{
     OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse, SubMsgResult, Uint128,
     WasmMsg,
 };
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
 use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
-use cw_token::implementations::cw20::{Cw20Instantiator, REPLY_SAVE_CW20_ADDRESS};
+use cw_token::cw20::{Cw20InitInfo, REPLY_SAVE_CW20_ADDRESS};
 use std::{str::FromStr, vec};
 
 use crate::contract::{execute, instantiate, reply};
@@ -52,22 +52,16 @@ fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
             ],
             performance_fee: 5,
             distribution_contract: "distribution_contract".to_string(),
-            token_instantiator: Cw20Instantiator {
-                label: "Apollo apOsmo token".to_string(),
-                admin: Some(MOCK_CONTRACT_ADDR.to_string()),
-                code_id: 1337u64,
-                cw20_init_msg: cw20_base::msg::InstantiateMsg {
-                    name: "apOSMO".to_string(),
-                    symbol: "apOSMO".to_string(),
-                    decimals: 6,
-                    initial_balances: vec![],
-                    mint: Some(MinterResponse {
-                        minter: MOCK_CONTRACT_ADDR.to_string(),
-                        cap: None,
-                    }),
-                    marketing: None,
-                },
-            },
+            init_info: Some(
+                to_binary(&Cw20InitInfo {
+                    code_id: 0,
+                    admin: None,
+                    funds: vec![],
+                    label: "test label".to_string(),
+                    init_msg: Default::default(),
+                })
+                .unwrap(),
+            ),
         },
     )
     .unwrap();
@@ -581,17 +575,11 @@ fn queuing_unbond() {
     // The users' unbonding requests should have been saved
     let ubr1 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap();
     let ubr2 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_3")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_3")))
         .unwrap();
 
     assert_eq!(
@@ -800,11 +788,7 @@ fn reconciling() {
     for previous_batch in &previous_batches {
         state
             .previous_batches
-            .save(
-                deps.as_mut().storage,
-                previous_batch.id,
-                previous_batch,
-            )
+            .save(deps.as_mut().storage, previous_batch.id, previous_batch)
             .unwrap();
     }
 
@@ -981,11 +965,7 @@ fn withdrawing_unbonded() {
     for previous_batch in &previous_batches {
         state
             .previous_batches
-            .save(
-                deps.as_mut().storage,
-                previous_batch.id,
-                previous_batch,
-            )
+            .save(deps.as_mut().storage, previous_batch.id, previous_batch)
             .unwrap();
     }
 
@@ -1075,17 +1055,11 @@ fn withdrawing_unbonded() {
     // User 1's unbond requests in batches 1 and 2 should have been deleted
     let err1 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap_err();
     let err2 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap_err();
 
     assert_eq!(
@@ -1140,10 +1114,7 @@ fn withdrawing_unbonded() {
 
     let err = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_3")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_3")))
         .unwrap_err();
 
     assert_eq!(

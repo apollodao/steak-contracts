@@ -1,18 +1,14 @@
 use apollo_proto_rust::{
     cosmos::base::v1beta1::Coin as ProtoCoin,
     osmosis::tokenfactory::v1beta1::{MsgBurn, MsgMint},
+    utils::encode,
 };
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg, Event, Order,
-    OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse, SubMsgResult, Uint128,
-    WasmMsg,
+    OwnedDeps, Reply, ReplyOn, StakingMsg, StdError, SubMsg, SubMsgResponse, Uint128, WasmMsg,
 };
-use prost::Message;
 
-use cosmwasm_std::{
-    testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR},
-    Binary,
-};
+use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use std::str::FromStr;
 
 use crate::contract::{execute, instantiate, reply};
@@ -29,10 +25,6 @@ use steak::math::{
 use steak::state::State;
 use steak::types::{Coins, Delegation, Redelegation, Undelegation};
 
-use cw_token::implementations::osmosis::{
-    OsmosisDenomInstantiator, REPLY_SAVE_OSMOSIS_DENOM,
-};
-
 use super::custom_querier::CustomQuerier;
 use super::helpers::{mock_dependencies, mock_env_at_timestamp, query_helper};
 const DENOM: &str = "factory/cosmos2contract/apOSMO";
@@ -43,11 +35,6 @@ const DENOM: &str = "factory/cosmos2contract/apOSMO";
 
 fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
     let mut deps = mock_dependencies();
-
-    let token_instantiator = OsmosisDenomInstantiator {
-        denom: DENOM.to_string(),
-        sender: MOCK_CONTRACT_ADDR.to_string(),
-    };
 
     let _res = instantiate(
         deps.as_mut(),
@@ -67,22 +54,7 @@ fn setup_test() -> OwnedDeps<MockStorage, MockApi, CustomQuerier> {
             ],
             performance_fee: 5,
             distribution_contract: "distribution_contract".to_string(),
-            token_instantiator,
-        },
-    )
-    .unwrap();
-
-    let _res = reply(
-        deps.as_mut(),
-        mock_env_at_timestamp(10000),
-        Reply {
-            id: REPLY_SAVE_OSMOSIS_DENOM,
-            result: SubMsgResult::Ok(SubMsgResponse {
-                events: vec![
-                    Event::new("create_denom").add_attribute("new_token_denom", DENOM.to_string())
-                ],
-                data: None,
-            }),
+            init_info: None,
         },
     )
     .unwrap();
@@ -167,7 +139,7 @@ fn bonding() {
         sender: MOCK_CONTRACT_ADDR.to_string(),
     };
 
-    let msg_bin = Binary::from(msg.encode_to_vec());
+    let msg_bin = encode(msg);
 
     assert_eq!(
         res.messages,
@@ -243,7 +215,7 @@ fn bonding() {
         sender: MOCK_CONTRACT_ADDR.to_string(),
     };
 
-    let msg_bin = Binary::from(msg.encode_to_vec());
+    let msg_bin = encode(msg);
 
     assert_eq!(
         res.messages[0],
@@ -531,17 +503,11 @@ fn queuing_unbond() {
     // The users' unbonding requests should have been saved
     let ubr1 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap();
     let ubr2 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_3")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_3")))
         .unwrap();
 
     assert_eq!(
@@ -658,16 +624,13 @@ fn submitting_batch() {
             id: 0,
             msg: CosmosMsg::Stargate {
                 type_url: "/osmosis.tokenfactory.v1beta1.MsgBurn".to_string(),
-                value: Binary::from(
-                    MsgBurn {
-                        amount: Some(ProtoCoin {
-                            denom: DENOM.to_string(),
-                            amount: 92876.to_string(),
-                        }),
-                        sender: MOCK_CONTRACT_ADDR.to_string(),
-                    }
-                    .encode_to_vec()
-                )
+                value: encode(MsgBurn {
+                    amount: Some(ProtoCoin {
+                        denom: DENOM.to_string(),
+                        amount: 92876.to_string(),
+                    }),
+                    sender: MOCK_CONTRACT_ADDR.to_string(),
+                })
             },
             gas_limit: None,
             reply_on: ReplyOn::Never
@@ -753,11 +716,7 @@ fn reconciling() {
     for previous_batch in &previous_batches {
         state
             .previous_batches
-            .save(
-                deps.as_mut().storage,
-                previous_batch.id,
-                previous_batch,
-            )
+            .save(deps.as_mut().storage, previous_batch.id, previous_batch)
             .unwrap();
     }
 
@@ -934,11 +893,7 @@ fn withdrawing_unbonded() {
     for previous_batch in &previous_batches {
         state
             .previous_batches
-            .save(
-                deps.as_mut().storage,
-                previous_batch.id,
-                previous_batch,
-            )
+            .save(deps.as_mut().storage, previous_batch.id, previous_batch)
             .unwrap();
     }
 
@@ -1028,17 +983,11 @@ fn withdrawing_unbonded() {
     // User 1's unbond requests in batches 1 and 2 should have been deleted
     let err1 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap_err();
     let err2 = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_1")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap_err();
 
     assert_eq!(
@@ -1093,10 +1042,7 @@ fn withdrawing_unbonded() {
 
     let err = state
         .unbond_requests
-        .load(
-            deps.as_ref().storage,
-            (1u64, &Addr::unchecked("user_3")),
-        )
+        .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_3")))
         .unwrap_err();
 
     assert_eq!(

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    Addr, Coin, QuerierWrapper, Reply, StdError, StdResult, SubMsgResponse, Uint128,
+    Addr, Coin, QuerierWrapper, Reply, Response, StdError, StdResult, SubMsgResponse, Uint128,
 };
 
 use crate::types::Delegation;
@@ -90,4 +90,22 @@ pub fn parse_received_fund(funds: &[Coin], denom: &str) -> StdResult<Uint128> {
     }
 
     Ok(fund.amount)
+}
+
+/// Merge several Response objects into one. Currently ignores the data fields.
+pub fn merge_responses(responses: Vec<Response>) -> Response {
+    let mut merged = Response::default();
+    for response in responses {
+        merged = merged
+            .add_attributes(response.attributes)
+            .add_events(response.events)
+            .add_messages(
+                response
+                    .messages
+                    .iter()
+                    .map(|m| m.msg.clone())
+                    .collect::<Vec<_>>(),
+            );
+    }
+    merged
 }

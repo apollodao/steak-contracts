@@ -3,7 +3,7 @@ use crate::hub::{Batch, PendingBatch, UnbondRequest};
 use crate::types::BooleanKey;
 use cosmwasm_std::{Addr, Coin, Decimal, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
-use cw_token::implementations::{cw20::Cw20, osmosis::OsmosisDenom};
+use cw_token::{cw20::Cw20, osmosis::OsmosisDenom};
 use cw_token::{Burn, Mint, Token};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -63,14 +63,14 @@ impl Default for State<'static> {
     fn default() -> Self {
         let pb_indexes = PreviousBatchesIndexes {
             reconciled: MultiIndex::new(
-                |d: &Batch| d.reconciled.into(),
+                |_pk: &[u8], d: &Batch| d.reconciled.into(),
                 "previous_batches",
                 "previous_batches__reconciled",
             ),
         };
         let ubr_indexes = UnbondRequestsIndexes {
             user: MultiIndex::new(
-                |d: &UnbondRequest| d.user.clone().into(),
+                |_pk: &[u8], d: &UnbondRequest| d.user.clone().into(),
                 "unbond_requests",
                 "unbond_requests__user",
             ),

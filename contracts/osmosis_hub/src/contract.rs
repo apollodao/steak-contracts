@@ -1,12 +1,13 @@
 use cosmwasm_std::{
     entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
 };
-use cw_token::implementations::osmosis::{OsmosisDenom, OsmosisDenomInstantiator};
+use cw_token::osmosis::OsmosisDenom;
 use steak::error::SteakContractError;
 use steak::execute;
 use steak::hub::{ExecuteMsg, MigrateMsg, QueryMsg};
+use steak::state::ItemStorage;
 
-pub type InstantiateMsg = steak::hub::InstantiateMsg<OsmosisDenomInstantiator>;
+pub type InstantiateMsg = steak::hub::InstantiateMsg;
 
 #[entry_point]
 pub fn instantiate(
@@ -15,7 +16,9 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, SteakContractError> {
-    execute::instantiate::<OsmosisDenom, OsmosisDenomInstantiator>(deps, env, msg)
+    let osmosis_denom = OsmosisDenom::new(env.contract.address.to_string(), "apOSMO".into());
+    osmosis_denom.save(deps.storage)?;
+    execute::instantiate::<OsmosisDenom>(deps, env, msg, osmosis_denom)
 }
 
 #[entry_point]
@@ -30,7 +33,7 @@ pub fn execute(
 
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, SteakContractError> {
-    execute::reply::<OsmosisDenom, OsmosisDenomInstantiator>(deps, env, reply)
+    execute::reply::<OsmosisDenom>(deps, env, reply)
 }
 
 #[entry_point]

@@ -1,12 +1,14 @@
 use cosmwasm_std::{
-    entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    entry_point, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
 };
-use cw_token::implementations::cw20::{Cw20, Cw20Instantiator};
+use cw_token::cw20::Cw20;
 use steak::error::SteakContractError;
 use steak::execute;
+use steak::helpers::merge_responses;
 use steak::hub::{ExecuteMsg, MigrateMsg, QueryMsg};
+use steak::state::ItemStorage;
 
-pub type InstantiateMsg = steak::hub::InstantiateMsg<Cw20Instantiator>;
+pub type InstantiateMsg = steak::hub::InstantiateMsg;
 
 #[entry_point]
 pub fn instantiate(
@@ -15,7 +17,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, SteakContractError> {
-    execute::instantiate(deps, env, msg)
+    let cw20 = Cw20(Addr::unchecked(String::default()));
+    execute::instantiate(deps, env, msg, cw20)
 }
 
 #[entry_point]
@@ -29,8 +32,12 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, SteakContractError> {
-    execute::reply::<Cw20, Cw20Instantiator>(deps, env, reply)
+pub fn reply(mut deps: DepsMut, env: Env, reply: Reply) -> Result<Response, SteakContractError> {
+    let save_token_response = Cw20::save_token(deps.branch(), &env, &reply, &Cw20::get_item())?;
+
+    let reply_response = execute::reply::<Cw20>(deps, env, reply)?;
+
+    Ok(merge_responses(vec![save_token_response, reply_response]))
 }
 
 #[entry_point]
